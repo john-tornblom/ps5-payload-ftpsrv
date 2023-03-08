@@ -40,56 +40,6 @@ along with this program; see the file COPYING. If not, see
 
 
 /**
- * Map names of commands to function entry points.
- **/
-typedef struct ftp_command {
-  const char       *name;
-  ftp_command_fn_t *func;
-} ftp_command_t;
-
-
-/**
- *
- **/
-ftp_command_t commands[] = {
-  {"CDUP", ftp_cmd_CDUP},
-  {"CWD",  ftp_cmd_CWD},
-  {"DELE", ftp_cmd_DELE},
-  {"LIST", ftp_cmd_LIST},
-  {"MKD",  ftp_cmd_MKD},
-  {"NOOP", ftp_cmd_NOOP},
-  {"PASV", ftp_cmd_PASV},
-  {"PWD",  ftp_cmd_PWD},
-  {"REST", ftp_cmd_REST},
-  {"RETR", ftp_cmd_RETR},
-  {"RMD",  ftp_cmd_RMD},
-  {"RNFR", ftp_cmd_RNFR},
-  {"RNTO", ftp_cmd_RNTO},
-  {"SIZE", ftp_cmd_SIZE},
-  {"STOR", ftp_cmd_STOR},
-  {"SYST", ftp_cmd_SYST},
-  {"USER", ftp_cmd_USER},
-  {"TYPE", ftp_cmd_TYPE},
-  {"QUIT", ftp_cmd_QUIT},
-
-  {"XCUP", ftp_cmd_NA},
-  {"XMKD", ftp_cmd_NA},
-  {"XPWD", ftp_cmd_NA},
-  {"XRCP", ftp_cmd_NA},
-  {"XRMD", ftp_cmd_NA},
-  {"XRSQ", ftp_cmd_NA},
-  {"XSEM", ftp_cmd_NA},
-  {"XSEN", ftp_cmd_NA},
-};
-
-
-/**
- *
- **/
-#define NB_FTP_COMMANDS (sizeof(commands)/sizeof(ftp_command_t))
-
-
-/**
  * Read a line from a file descriptor.
  **/
 static char*
@@ -195,12 +145,62 @@ ftp_execute(ftp_env_t *env, char **argv) {
     return -1;
   }
 
-  for(int i=0; i<NB_FTP_COMMANDS; i++) {
-    if(strcmp(argv[0], commands[i].name)) {
-      continue;
-    }
-
-    return commands[i].func(argc, argv, env);
+  if(!strcmp(argv[0], "CDUP")) {
+    return ftp_cmd_CDUP(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "CWD")) {
+    return ftp_cmd_CWD(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "DELE")) {
+    return ftp_cmd_DELE(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "LIST")) {
+    return ftp_cmd_LIST(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "MKD")) {
+    return ftp_cmd_MKD(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "NOOP")) {
+    return ftp_cmd_NOOP(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "PASV")) {
+    return ftp_cmd_PASV(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "PWD")) {
+    return ftp_cmd_PWD(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "REST")) {
+    return ftp_cmd_REST(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "RETR")) {
+    return ftp_cmd_RETR(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "RMD")) {
+    return ftp_cmd_RMD(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "RNFR")) {
+    return ftp_cmd_RNFR(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "RNTO")) {
+    return ftp_cmd_RNTO(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "SIZE")) {
+    return ftp_cmd_SIZE(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "STOR")) {
+    return ftp_cmd_STOR(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "SYST")) {
+    return ftp_cmd_SYST(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "USER")) {
+    return ftp_cmd_USER(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "TYPE")) {
+    return ftp_cmd_TYPE(argc, argv, env);
+  }
+  if(!strcmp(argv[0], "QUIT")) {
+    return ftp_cmd_QUIT(argc, argv, env);
   }
 
   const char *cmd = "500 Command not recognized\r\n";

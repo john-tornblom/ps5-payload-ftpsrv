@@ -225,13 +225,13 @@ ftp_cmd_CWD(int argc, char **argv, ftp_env_t *env) {
 int
 ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
   char pathbuf[PATH_MAX+256+2];
-  struct dirent **namelist;
+  struct dirent *ent;
   const char *p = env->cwd;
   struct stat statbuf;
   char timebuf[20];
   char modebuf[20];
   struct tm * tm;
-  int n;
+  DIR *dir;
 
   for(int i=1; i<argc; i++) {
     if(argv[i][0] != '-') {
@@ -239,21 +239,22 @@ ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
     }
   }
 
-  if((n=scandir(p, &namelist, NULL, alphasort)) < 0) {
+  if(ftp_data_open(env)) {
     return ftp_perror(env);
   }
 
-  if(ftp_data_open(env)) {
+  if(!(dir=opendir(p))) {
     return ftp_perror(env);
   }
 
   ftp_active_printf(env, "150 Opening data transfer\r\n");
 
-  for(int i=0; i<n; i++) {
+  while((ent=readdir(dir))) {
     if(p[0] == '/') {
-      snprintf(pathbuf, sizeof(pathbuf), "%s/%s", p, namelist[i]->d_name);
+      snprintf(pathbuf, sizeof(pathbuf), "%s/%s", p, ent->d_name);
     } else {
-      snprintf(pathbuf, sizeof(pathbuf), "/%s/%s/%s", env->cwd, p, namelist[i]->d_name);
+      snprintf(pathbuf, sizeof(pathbuf), "/%s/%s/%s", env->cwd, p,
+	       ent->d_name);
     }
 
     if(stat(pathbuf, &statbuf) != 0) {
@@ -266,11 +267,12 @@ ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
 
     ftp_data_printf(env, "%s %lu %lu %lu %llu %s %s\r\n", modebuf,
 		    statbuf.st_nlink, statbuf.st_uid, statbuf.st_gid,
-		    statbuf.st_size, timebuf, namelist[i]->d_name);
-    free(namelist[i]);
+		    statbuf.st_size, timebuf, ent->d_name);
   }
 
-  free(namelist);
+  if(closedir(dir)) {
+    return ftp_perror(env);
+  }
 
   if(ftp_data_close(env)) {
     return ftp_perror(env);

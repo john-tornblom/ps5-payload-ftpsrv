@@ -43,7 +43,7 @@ along with this program; see the file COPYING. If not, see
 
 
 /**
- *
+ * Create a string representation of a file mode.
  **/
 static void
 ftp_mode_string(mode_t mode, char *buf) {
@@ -73,7 +73,7 @@ ftp_mode_string(mode_t mode, char *buf) {
 
 
 /**
- *
+ * Open a new PASSV FTP data connection.
  **/
 static int
 ftp_data_open(ftp_env_t *env) {
@@ -90,7 +90,7 @@ ftp_data_open(ftp_env_t *env) {
 
 
 /**
- *
+ * Transmit a formatted string via an existing data connection.
  **/
 static int
 ftp_data_printf(ftp_env_t *env, const char *fmt, ...) {
@@ -112,7 +112,7 @@ ftp_data_printf(ftp_env_t *env, const char *fmt, ...) {
 
 
 /**
- *
+ * Read data from an existing data connection.
  **/
 static int
 ftp_data_read(ftp_env_t *env, void *buf, size_t count) {
@@ -121,7 +121,7 @@ ftp_data_read(ftp_env_t *env, void *buf, size_t count) {
 
 
 /**
- *
+ * Transmit data on an existing data connection.
  **/
 static int
 ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
@@ -130,7 +130,7 @@ ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
 
 
 /**
- *
+ * Close an existing data connection.
  **/
 static int
 ftp_data_close(ftp_env_t *env) {
@@ -139,7 +139,7 @@ ftp_data_close(ftp_env_t *env) {
 
 
 /**
- *
+ * Transmit a formatted string via an active connection.
  **/
 static int
 ftp_active_printf(ftp_env_t *env, const char *fmt, ...) {
@@ -162,7 +162,7 @@ ftp_active_printf(ftp_env_t *env, const char *fmt, ...) {
 
 
 /**
- *
+ * Transmit an errno string via an active connection.
  **/
 static int
 ftp_perror(ftp_env_t *env) {
@@ -324,12 +324,12 @@ ftp_cmd_PASV(int argc, char **argv, ftp_env_t *env) {
   port = sockaddr.sin_port;
 
   return ftp_active_printf(env, "227 Entering Passive Mode (%hhu,%hhu,%hhu,%hhu,%hhu,%hhu).\r\n",
-		    (addr >> 0) & 0xFF,
-		    (addr >> 8) & 0xFF,
-		    (addr >> 16) & 0xFF,
-		    (addr >> 24) & 0xFF,
-		    (port >> 0) & 0xFF,
-		    (port >> 8) & 0xFF);
+			   (addr >> 0) & 0xFF,
+			   (addr >> 8) & 0xFF,
+			   (addr >> 16) & 0xFF,
+			   (addr >> 24) & 0xFF,
+			   (port >> 0) & 0xFF,
+			   (port >> 8) & 0xFF);
 }
 
 /**

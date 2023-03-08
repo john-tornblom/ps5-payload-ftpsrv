@@ -30,6 +30,9 @@ along with this program; see the file COPYING. If not, see
 #include "cmd.h"
 
 
+/**
+ * Constants used for parsing FTP commands.
+ **/
 #define FTP_LINE_BUFSIZE 1024
 #define FTP_TOK_BUFSIZE  128
 #define FTP_ARG_DELIM    " \t\r\n\a"
@@ -51,7 +54,7 @@ typedef struct ftp_command {
 ftp_command_t commands[] = {
   {"CDUP", ftp_cmd_CDUP},
   {"CWD",  ftp_cmd_CWD},
-  {"DELE",  ftp_cmd_DELE},
+  {"DELE", ftp_cmd_DELE},
   {"LIST", ftp_cmd_LIST},
   {"MKD",  ftp_cmd_MKD},
   {"NOOP", ftp_cmd_NOOP},
@@ -210,7 +213,9 @@ ftp_execute(ftp_env_t *env, char **argv) {
   return 0;
 }
 
-
+/**
+ * Greet a new FTP connection.
+ **/
 static int
 ftp_greet(ftp_env_t *env) {
   const char *cmd = "220 Service is ready\r\n";
@@ -336,35 +341,7 @@ ftp_serve(uint16_t port) {
 
     pthread_create(&trd, NULL, ftp_thread, (void*)(long)connfd);
   }
-}
-
-
-/**
- * Run FTP server in its own thread.
- **/
-static void*
-ftp_server_thread(void* args) {
-  ftp_serve((uint16_t)(long)args);
-  pthread_exit(NULL);
-  return NULL;
-}
-
-
-/**
- * Run FTP server in its own process.
- **/
-static int
-ftp_server_spawn(uint16_t port) {
-  switch(fork()) {
-  case -1:
-    perror("fork");
-    return -1;
-
-  case 0:
-    ftp_serve(port);
-    _exit(0);
-  }
-  return 0;
+  close(sockfd);
 }
 
 
@@ -375,14 +352,8 @@ int
 main() {
   uint16_t port = 2121;
 
-#ifdef FORK_SERVER
-  return ftp_spawn(port);
-#elif THREAD_SERVER
-  pthread_t trd;
-  return pthread_create(&trd, NULL, ftp_server_thread, (void*)(long)port);
-#else
   ftp_serve(port);
+
   return 0;
-#endif
 }
 

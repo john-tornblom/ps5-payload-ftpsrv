@@ -21,28 +21,28 @@ endif
 PS5_HOST ?= ps5
 PS5_PORT ?= 9020
 
-ELF := uftps5d.elf
+ELF := ftp-server.elf
 
 CC ?= cc
 LD ?= ld
 
-CFLAGS := -isysroot $(PS5_PAYLOAD_SDK) -static
-LDADD  := -lkernel_sys -lSceLibcInternal
+CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static
+LDADD  := -lkernel_web -lSceLibcInternal
 
 all: $(ELF)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) -o $@ $^
 
-$(ELF): main.o
-	$(LD) -o $@ \
+$(ELF): main.o cmd.o
+	$(LD) -static -o $@ \
 	      -T $(PS5_PAYLOAD_SDK)/linker.x \
 	      -L$(PS5_PAYLOAD_SDK)/usr/lib \
 	      $^ $(PS5_PAYLOAD_SDK)/usr/lib/crt1.o \
 	      $(LDADD)
 
 clean:
-	rm -f *.o $(ELF)
+	rm -f *.o *.elf
 
 test: $(ELF)
 	nc -q0 $(PS5_HOST) $(PS5_PORT) < $^

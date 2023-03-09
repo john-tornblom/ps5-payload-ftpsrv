@@ -752,13 +752,7 @@ ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env) {
   if(sce_remount("/dev/ssd0.system_ex", "/system_ex")) {
     return ftp_perror(env);
   }
-#elif defined(__ORBIS__)
-  if(sce_remount("/dev/da0x4.crypt", "/system")) {
-    return ftp_perror(env);
-  }
-  if(sce_remount("/dev/da0x5.crypt", "/system_ex")) {
-    return ftp_perror(env);
-  }
+  return ftp_active_printf(env, "226 /system and /system_ex remounted\r\n");
 #else
   return ftp_cmd_NA(argc, argv, env);
 #endif

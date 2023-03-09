@@ -213,6 +213,7 @@ ftp_execute(ftp_env_t *env, char **argv) {
   return 0;
 }
 
+
 /**
  * Greet a new FTP connection.
  **/
@@ -230,7 +231,7 @@ ftp_greet(ftp_env_t *env) {
 
 
 /**
- * Entry point for new FTP connections
+ * Entry point for new FTP connections.
  **/
 static void*
 ftp_thread(void *args) {

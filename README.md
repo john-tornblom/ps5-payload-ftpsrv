@@ -40,4 +40,4 @@ ftps5-payload is licensed under the GPLv3+.
 [bdj]: https://github.com/john-tornblom/bdj-sdk
 [sdk]: https://github.com/john-tornblom/ps5-payload-sdk
 [webkit]: https://github.com/Cryptogenic/PS5-IPV6-Kernel-Exploit
-[issues]: https://github.com/john-tornblom/tiny-ps4-shell/issues/new
+[issues]: https://github.com/john-tornblom/ftps5-payload/issues/new

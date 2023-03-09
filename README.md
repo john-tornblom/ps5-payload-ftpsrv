@@ -22,8 +22,8 @@ and supports multiple simultanious connections. Client software that has been
 testing include gFTP, Filezilla, and Thunar. Furthermore, the payload supports
 a couple of custom SITE commands specifically for the PS5 (executed without
 prepending SITE). In particular:
-  KILL - kill the FTP server. This allows you to launch other payloads.
-  MTRW - remount /system and /system_ex with write permissions.
+ - KILL - kill the FTP server. This allows you to launch other payloads.
+ - MTRW - remount /system and /system_ex with write permissions.
 
 ## Limitations
 This payload is currently not compatible with the [PS5 webkit exploit][webkit].

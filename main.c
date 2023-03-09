@@ -215,7 +215,6 @@ ftp_execute(ftp_env_t *env, char **argv) {
   // custom commands
   if(!strcmp(argv[0], "MTRW")) {
     return ftp_cmd_MTRW(argc, argv, env);
-    return 0;
   }
   if(!strcmp(argv[0], "KILL")) {
     g_running = false; // TODO: atomic_store
@@ -337,7 +336,6 @@ ftp_serve(uint16_t port) {
     return;
   }
 
-
   if((flags=fcntl(sockfd, F_GETFL)) < 0) {
     perror("fcntl");
     return;
@@ -373,6 +371,16 @@ ftp_serve(uint16_t port) {
       } else {
 	usleep(50 * 1000);
       }
+      continue;
+    }
+
+    if((flags=fcntl(connfd, F_GETFL)) < 0) {
+      perror("fcntl");
+      return;
+    }
+  
+    if(fcntl(connfd, F_SETFL, flags & ~O_NONBLOCK) < 0) {
+      perror("fcntl");
       continue;
     }
 

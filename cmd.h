@@ -57,4 +57,6 @@ int ftp_cmd_SYST(int argc, char **argv, ftp_env_t *env);
 int ftp_cmd_TYPE(int argc, char **argv, ftp_env_t *env);
 int ftp_cmd_USER(int argc, char **argv, ftp_env_t *env);
 
+int ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env);
+
 int ftp_cmd_NA(int argc, char **argv, ftp_env_t *env);

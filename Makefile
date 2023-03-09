@@ -26,8 +26,8 @@ ELF := ftp-server.elf
 CC ?= cc
 LD ?= ld
 
-CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static
-LDADD  := -lkernel_web -lSceLibcInternal
+CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static -D__PROSPERO__
+LDADD  := -lkernel_sys -lSceLibcInternal
 
 all: $(ELF)
 

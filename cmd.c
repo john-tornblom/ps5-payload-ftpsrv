@@ -39,6 +39,11 @@ along with this program; see the file COPYING. If not, see
 #include <errno.h>
 #include <inttypes.h>
 
+#ifdef __PROSPERO__
+#include <sys/mount.h>
+#include <sys/_iovec.h>
+#endif
+
 #include "cmd.h"
 
 
@@ -678,5 +683,84 @@ ftp_cmd_RNTO(int argc, char **argv, ftp_env_t *env) {
   }
 
   return ftp_active_printf(env, "226 Path renamed\r\n");
+}
+
+
+#ifdef __PROSPERO__
+/**
+ * Build an iovec structure for nmount().
+ **/
+static void
+freebsd_build_iovec(struct iovec **iov, int *iovlen, const char *name, const char *v) {
+  int i;
+
+  if(*iovlen < 0) {
+    return;
+  }
+
+  i = *iovlen;
+  *iov = realloc(*iov, sizeof(**iov) * (i + 2));
+  if(*iov == 0) {
+    *iovlen = -1;
+    return;
+  }
+
+  (*iov)[i].iov_base = strdup(name);
+  (*iov)[i].iov_len = strlen(name) + 1;
+  i++;
+
+  (*iov)[i].iov_base = v ? strdup(v) : 0;
+  (*iov)[i].iov_len = v ? strlen(v) + 1 : 0;
+  i++;
+
+  *iovlen = i;
+}
+
+
+/**
+ * Remount a given path with write permissions.
+ * 
+ * TODO: is there a memory leak to plug?
+ **/
+static int
+sce_remount(const char *dev, const char *path) {
+  struct iovec* iov = 0;
+  int iovlen = 0;
+
+  freebsd_build_iovec(&iov, &iovlen, "fstype", "exfatfs");
+  freebsd_build_iovec(&iov, &iovlen, "fspath", path);
+  freebsd_build_iovec(&iov, &iovlen, "from", dev);
+  freebsd_build_iovec(&iov, &iovlen, "large", "yes");
+  freebsd_build_iovec(&iov, &iovlen, "timezone", "static");
+  freebsd_build_iovec(&iov, &iovlen, "async", 0);
+  freebsd_build_iovec(&iov, &iovlen, "ignoreacl", 0);
+
+  return nmount(iov, iovlen, MNT_UPDATE);
+}
+#endif // __PROSPERO__
+
+
+/**
+ * Remount read-only mount points with write permissions.
+ **/
+int
+ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env) {
+#if defined(__PROSPERO__)
+  if(sce_remount("/dev/ssd0.system", "/system")) {
+    return ftp_perror(env);
+  }
+  if(sce_remount("/dev/ssd0.system_ex", "/system_ex")) {
+    return ftp_perror(env);
+  }
+#elif defined(__ORBIS__)
+  if(sce_remount("/dev/da0x4.crypt", "/system")) {
+    return ftp_perror(env);
+  }
+  if(sce_remount("/dev/da0x5.crypt", "/system_ex")) {
+    return ftp_perror(env);
+  }
+#else
+  return ftp_cmd_NA(argc, argv, env);
+#endif
 }
 

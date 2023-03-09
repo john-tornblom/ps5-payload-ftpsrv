@@ -26,6 +26,7 @@ along with this program; see the file COPYING. If not, see
 #include <limits.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "cmd.h"
 
@@ -37,6 +38,14 @@ along with this program; see the file COPYING. If not, see
 #define FTP_TOK_BUFSIZE  128
 #define FTP_ARG_DELIM    " \t\r\n\a"
 #define FTP_CMD_DELIM    ";"
+
+
+/**
+ * Global state.
+ * 
+ * TODO: update ps5-payload-sdk with freebsd-11 headers and use atomic_bool
+ **/
+static bool g_running;
 
 
 /**
@@ -203,6 +212,16 @@ ftp_execute(ftp_env_t *env, char **argv) {
     return ftp_cmd_QUIT(argc, argv, env);
   }
 
+  // custom commands
+  if(!strcmp(argv[0], "MTRW")) {
+    return ftp_cmd_MTRW(argc, argv, env);
+    return 0;
+  }
+  if(!strcmp(argv[0], "KILL")) {
+    g_running = false; // TODO: atomic_store
+    return 0;
+  }
+  
   const char *cmd = "500 Command not recognized\r\n";
   size_t len = strlen(cmd);
 
@@ -252,7 +271,7 @@ ftp_thread(void *args) {
 
   running = !ftp_greet(&env);
 
-  while(running) {
+  while(running && g_running) { //TODO: atomic_load
     if(!(line=ftp_readline(env.active_fd))) {
       break;
     }
@@ -306,7 +325,8 @@ ftp_serve(uint16_t port) {
   pthread_t trd;
   int sockfd;
   int connfd;
-
+  int flags;
+  
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
     return;
@@ -314,6 +334,17 @@ ftp_serve(uint16_t port) {
 
   if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
     perror("setsockopt");
+    return;
+  }
+
+
+  if((flags=fcntl(sockfd, F_GETFL)) < 0) {
+    perror("fcntl");
+    return;
+  }
+
+  if(fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) < 0) {
+    perror("fcntl");
     return;
   }
 
@@ -333,15 +364,21 @@ ftp_serve(uint16_t port) {
   }
 
   addr_len = sizeof(client_addr);
+  g_running = true; //TODO: atomic_init
 
-  while(1) {
+  while(g_running) { // TODO: atomic_load
     if((connfd=accept(sockfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
-      perror("accept");
+      if(errno != EWOULDBLOCK) {
+	perror("accept");
+      } else {
+	usleep(50 * 1000);
+      }
       continue;
     }
 
     pthread_create(&trd, NULL, ftp_thread, (void*)(long)connfd);
   }
+
   close(sockfd);
 }
 
@@ -353,7 +390,9 @@ int
 main() {
   uint16_t port = 2121;
 
+  printf("Launching FTP server on port %d\n", port);
   ftp_serve(port);
+  printf("Server killed\n");
 
   return 0;
 }

@@ -3,14 +3,15 @@ ftps5-payload is a simple FTP server that can be executed on a Playstation 5
 that has been jailbroken via the [BD-J][bdj] or [webkit][webkit] entry points.
 
 ## Building
-Assuming you have the [ps5-payload-sdk][sdk] installed on a GNU/Linux machine,
+Assuming you have the [ps5-payload-sdk][sdk] installed on a POSIX machine,
 the FTP server can be compiled using the following two commands:
 ```console
 john@localhost:ftps5-payload$ export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk
 john@localhost:ftps5-payload$ make
 ```
 
-You can also compile the FTP server for POSIX-like systems (tested with Linux):
+You can also compile the FTP server for POSIX-like systems (tested with Ubuntu
+and FreeBSD):
 ```console
 john@localhost:ftps5-payload$ make -f Makefile.posix
 john@localhost:ftps5-payload$ ./ftp-server.elf

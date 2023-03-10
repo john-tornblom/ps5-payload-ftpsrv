@@ -1,6 +1,6 @@
 # PS5 FTP Payload
 ftps5-payload is a simple FTP server that can be executed on a Playstation 5
-that has been jailbroken via the [BD-J entry point][bdj].
+that has been jailbroken via the [BD-J][bdj] or [webkit][webkit] entry points.
 
 ## Building
 Assuming you have the [ps5-payload-sdk][sdk] installed on a GNU/Linux machine,
@@ -26,7 +26,13 @@ prepending SITE). In particular:
  - MTRW - remount /system and /system_ex with write permissions.
 
 ## Limitations
-This payload is currently not compatible with the [PS5 webkit exploit][webkit].
+The webkit entry point cannot be used in conjunction with the MTRW command,
+hence it is disabled by default. To enable it:
+```console
+john@localhost:ftps5-payload$ export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk
+john@localhost:ftps5-payload$ export MTRW_COMMAND=1
+john@localhost:ftps5-payload$ make
+```
 
 ## Reporting Bugs
 If you encounter problems with ftps5-payload, please [file a github issue][issues].

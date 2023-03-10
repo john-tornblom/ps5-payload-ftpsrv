@@ -39,7 +39,7 @@ along with this program; see the file COPYING. If not, see
 #include <errno.h>
 #include <inttypes.h>
 
-#ifdef __PROSPERO__
+#ifdef __FreeBSD__
 #include <sys/mount.h>
 #include <sys/_iovec.h>
 #endif
@@ -686,7 +686,7 @@ ftp_cmd_RNTO(int argc, char **argv, ftp_env_t *env) {
 }
 
 
-#ifdef __PROSPERO__
+#ifdef MTRW_COMMAND
 /**
  * Build an iovec structure for nmount().
  **/
@@ -737,7 +737,7 @@ sce_remount(const char *dev, const char *path) {
 
   return nmount(iov, iovlen, MNT_UPDATE);
 }
-#endif // __PROSPERO__
+#endif // MTRW_COMMAND
 
 
 /**
@@ -745,7 +745,7 @@ sce_remount(const char *dev, const char *path) {
  **/
 int
 ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env) {
-#if defined(__PROSPERO__)
+#ifdef MTRW_COMMAND
   if(sce_remount("/dev/ssd0.system", "/system")) {
     return ftp_perror(env);
   }

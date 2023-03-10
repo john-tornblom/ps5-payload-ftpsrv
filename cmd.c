@@ -55,11 +55,11 @@ ftp_mode_string(mode_t mode, char *buf) {
   char c, d;
   int i, bit;
 
-  buf[10]=0;
-  for (i=0; i<9; i++) {
+  buf[10] = 0;
+  for(i=0; i<9; i++) {
     bit = mode & (1<<i);
     c = i%3;
-    if (!c && (mode & (1<<((d=i/3)+9)))) {
+    if(!c && (mode & (1<<((d=i/3)+9)))) {
       c = "tss"[(int)d];
       if (!bit) c &= ~0x20;
     } else c = bit ? "xwr"[(int)c] : '-';

@@ -32,31 +32,26 @@ typedef struct ftp_env {
 } ftp_env_t;
 
 
-/**
- * Callback function prototype for ftp commands.
- **/
-typedef int (ftp_command_fn_t)(int argc, char **argv, ftp_env_t *env);
+int ftp_cmd_CDUP(ftp_env_t *env, const char* arg);
+int ftp_cmd_CWD (ftp_env_t *env, const char* arg);
+int ftp_cmd_DELE(ftp_env_t *env, const char* arg);
+int ftp_cmd_LIST(ftp_env_t *env, const char* arg);
+int ftp_cmd_MKD (ftp_env_t *env, const char* arg);
+int ftp_cmd_NOOP(ftp_env_t *env, const char* arg);
+int ftp_cmd_PASV(ftp_env_t *env, const char* arg);
+int ftp_cmd_PWD (ftp_env_t *env, const char* arg);
+int ftp_cmd_QUIT(ftp_env_t *env, const char* arg);
+int ftp_cmd_REST(ftp_env_t *env, const char* arg);
+int ftp_cmd_RETR(ftp_env_t *env, const char* arg);
+int ftp_cmd_RMD (ftp_env_t *env, const char* arg);
+int ftp_cmd_RNFR(ftp_env_t *env, const char* arg);
+int ftp_cmd_RNTO(ftp_env_t *env, const char* arg);
+int ftp_cmd_SIZE(ftp_env_t *env, const char* arg);
+int ftp_cmd_STOR(ftp_env_t *env, const char* arg);
+int ftp_cmd_SYST(ftp_env_t *env, const char* arg);
+int ftp_cmd_TYPE(ftp_env_t *env, const char* arg);
+int ftp_cmd_USER(ftp_env_t *env, const char* arg);
 
-int ftp_cmd_CDUP(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_CWD (int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_DELE(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_MKD (int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_NOOP(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_PASV(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_PWD (int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_QUIT(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_REST(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_RMD (int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_RNFR(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_RNTO(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_SIZE(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_STOR(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_SYST(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_TYPE(int argc, char **argv, ftp_env_t *env);
-int ftp_cmd_USER(int argc, char **argv, ftp_env_t *env);
+int ftp_cmd_MTRW(ftp_env_t *env, const char* arg);
 
-int ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env);
-
-int ftp_cmd_NA(int argc, char **argv, ftp_env_t *env);
+int ftp_cmd_NA(ftp_env_t *env, const char* arg);

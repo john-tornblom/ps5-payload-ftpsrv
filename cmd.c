@@ -208,15 +208,15 @@ ftp_abspath(ftp_env_t *env, char *abspath, const char *path) {
  *
  **/
 int
-ftp_cmd_CWD(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_CWD(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
   struct stat st;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <PATH>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: CWD <PATH>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(stat(pathbuf, &st)) {
     return ftp_perror(env);
   }
@@ -235,7 +235,7 @@ ftp_cmd_CWD(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX+256+2];
   struct dirent *ent;
   const char *p = env->cwd;
@@ -245,10 +245,8 @@ ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
   struct tm * tm;
   DIR *dir;
 
-  for(int i=1; i<argc; i++) {
-    if(argv[i][0] != '-') {
-      p = argv[i];
-    }
+  if(arg[0] && arg[0] != '-') {
+    p = arg;
   }
 
   if(ftp_data_open(env)) {
@@ -298,7 +296,7 @@ ftp_cmd_LIST(int argc, char **argv, ftp_env_t *env) {
  * Enter passive mode.
  **/
 int
-ftp_cmd_PASV(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
   socklen_t sockaddr_len = sizeof(struct sockaddr_in);
   struct sockaddr_in sockaddr;
   uint32_t addr = 0;
@@ -346,28 +344,27 @@ ftp_cmd_PASV(int argc, char **argv, ftp_env_t *env) {
 			   (port >> 8) & 0xFF);
 }
 
+
 /**
  * Transmit a given file.
  **/
 int
-ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
-  char buf[0x1000];
   struct stat st;
-  size_t len;
   int fd;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <PATH>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RETR <PATH>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(stat(pathbuf, &st)) {
     return ftp_perror(env);
   }
 
-  if(S_ISDIR(st.st_mode)) {
-    return ftp_cmd_LIST(argc, argv, env);
+  if(!S_ISREG(st.st_mode)) {
+    return ftp_active_printf(env, "550 Not a regular file\r\n");
   }
 
   if((fd=open(pathbuf, O_RDONLY, 0)) < 0) {
@@ -387,7 +384,7 @@ ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env) {
     close(fd);
     return ret;
   }
-  
+
   close(fd);
 
   if(ftp_data_close(env)) {
@@ -400,17 +397,17 @@ ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env) {
 
 
 /**
- * Return the size of a given file.
+ * Transmit the size of a given file.
  **/
 int
-ftp_cmd_SIZE(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_SIZE(ftp_env_t *env, const char* arg) {
   struct stat st;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <FILENAME>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: SIZE <FILENAME>\r\n");
   }
 
-  if(stat(argv[1], &st)) {
+  if(stat(arg, &st)) {
     return ftp_perror(env);
   }
 
@@ -422,17 +419,17 @@ ftp_cmd_SIZE(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_STOR(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
   uint8_t readbuf[0x4000];
   char pathbuf[PATH_MAX];
   size_t len;
   int fd;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <FILENAME>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: STOR <FILENAME>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if((fd=open(pathbuf, O_CREAT | O_WRONLY | O_TRUNC, 0777)) < 0) {
     return ftp_perror(env);
   }
@@ -471,7 +468,7 @@ ftp_cmd_STOR(int argc, char **argv, ftp_env_t *env) {
  * Print working directory.
  **/
 int
-ftp_cmd_PWD(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_PWD(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "257 \"%s\"\r\n", env->cwd);
 }
 
@@ -480,7 +477,7 @@ ftp_cmd_PWD(int argc, char **argv, ftp_env_t *env) {
  * Disconnect user.
  **/
 int
-ftp_cmd_QUIT(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_QUIT(ftp_env_t *env, const char* arg) {
   ftp_active_printf(env, "221 Goodbye\r\n");
   return -1;
 }
@@ -490,7 +487,7 @@ ftp_cmd_QUIT(int argc, char **argv, ftp_env_t *env) {
  * Return system type.
  **/
 int
-ftp_cmd_SYST(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_SYST(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "215 UNIX Type: L8\r\n");
 }
 
@@ -499,15 +496,11 @@ ftp_cmd_SYST(int argc, char **argv, ftp_env_t *env) {
  * Sets the transfer mode (ASCII or Binary).
  **/
 int
-ftp_cmd_TYPE(int argc, char **argv, ftp_env_t *env) {
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <A|I>\r\n", argv[0]);
-  }
-
-  switch(argv[1][0]) {
+ftp_cmd_TYPE(ftp_env_t *env, const char* arg) {
+  switch(arg[0]) {
   case 'A':
   case 'I':
-    env->type = argv[1][0];
+    env->type = arg[0];
     return ftp_active_printf(env, "200 Type set to %c\r\n", env->type);
   }
 
@@ -519,7 +512,7 @@ ftp_cmd_TYPE(int argc, char **argv, ftp_env_t *env) {
  * Authenticate user.
  **/
 int
-ftp_cmd_USER(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_USER(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "230 User logged in\r\n");
 }
 
@@ -528,7 +521,7 @@ ftp_cmd_USER(int argc, char **argv, ftp_env_t *env) {
  * Unsupported command.
  **/
 int
-ftp_cmd_NA(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_NA(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "502 Command not implemented\r\n");
 }
 
@@ -537,7 +530,7 @@ ftp_cmd_NA(int argc, char **argv, ftp_env_t *env) {
  * No operation.
  **/
 int
-ftp_cmd_NOOP(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_NOOP(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "200 NOOP OK\r\n");
 }
 
@@ -546,14 +539,14 @@ ftp_cmd_NOOP(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_REST(int argc, char **argv, ftp_env_t *env) {
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <OFFSET>\r\n", argv[0]);
+ftp_cmd_REST(ftp_env_t *env, const char* arg) {
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: REST <OFFSET>\r\n");
   }
+  
+  env->data_offset = atol(arg);
 
-  env->data_offset = atol(argv[1]);
-
-  return 0;
+  return ftp_active_printf(env, "200 REST OK\r\n");
 }
 
 
@@ -561,14 +554,14 @@ ftp_cmd_REST(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_DELE(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_DELE(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <FILENAME>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: DELE <FILENAME>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(remove(pathbuf)) {
     return ftp_perror(env);
   }
@@ -581,14 +574,14 @@ ftp_cmd_DELE(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_MKD(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_MKD(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <DIRNAME>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: MKD <DIRNAME>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(mkdir(pathbuf, 0777)) {
     return ftp_perror(env);
   }
@@ -601,7 +594,7 @@ ftp_cmd_MKD(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_CDUP(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_CDUP(ftp_env_t *env, const char* arg) {
   int pos = -1;
 
   for(size_t i=0; i<sizeof(env->cwd); i++) {
@@ -624,14 +617,14 @@ ftp_cmd_CDUP(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_RMD(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_RMD(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <DIRNAME>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RMD <DIRNAME>\r\n");
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(rmdir(pathbuf)) {
     return ftp_perror(env);
   }
@@ -644,14 +637,14 @@ ftp_cmd_RMD(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_RNFR(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_RNFR(ftp_env_t *env, const char* arg) {
   struct stat st;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <PATH>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RNFR <PATH>\r\n");
   }
 
-  ftp_abspath(env, env->rename_path, argv[1]);
+  ftp_abspath(env, env->rename_path, arg);
   if(stat(env->rename_path, &st)) {
     return ftp_perror(env);
   }
@@ -664,19 +657,19 @@ ftp_cmd_RNFR(int argc, char **argv, ftp_env_t *env) {
  *
  **/
 int
-ftp_cmd_RNTO(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_RNTO(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
   struct stat st;
 
-  if(argc < 2) {
-    return ftp_active_printf(env, "501 Usage: %s <PATH>\r\n", argv[0]);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RNTO <PATH>\r\n");
   }
 
   if(stat(env->rename_path, &st)) {
     return ftp_perror(env);
   }
 
-  ftp_abspath(env, pathbuf, argv[1]);
+  ftp_abspath(env, pathbuf, arg);
   if(rename(env->rename_path, pathbuf)) {
     return ftp_perror(env);
   }
@@ -743,7 +736,7 @@ sce_remount(const char *dev, const char *path) {
  * Remount read-only mount points with write permissions.
  **/
 int
-ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env) {
+ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
 #ifdef MTRW_COMMAND
   if(sce_remount("/dev/ssd0.system", "/system")) {
     return ftp_perror(env);
@@ -753,7 +746,7 @@ ftp_cmd_MTRW(int argc, char **argv, ftp_env_t *env) {
   }
   return ftp_active_printf(env, "226 /system and /system_ex remounted\r\n");
 #else
-  return ftp_cmd_NA(argc, argv, env);
+  return ftp_cmd_NA(env, arg);
 #endif
 }
 

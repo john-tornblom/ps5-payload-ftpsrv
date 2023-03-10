@@ -103,129 +103,89 @@ ftp_readline(int fd) {
 
 
 /**
- * Split a string into an array of substrings seperated by
- * a delimiter.
- **/
-static char**
-ftp_splitstring(char *line, char *delim) {
-  int bufsize = 1024;
-  int position = 0;
-  char **tokens = malloc(bufsize * sizeof(char*));
-  char *token, **tokens_backup;
-
-  if(!tokens) {
-    perror("malloc");
-    return NULL;
-  }
-
-  token = strtok(line, delim);
-  while(token != NULL) {
-    tokens[position] = token;
-    position++;
-
-    if(position >= bufsize) {
-      bufsize += 1024;
-      tokens_backup = tokens;
-      tokens = realloc(tokens, bufsize * sizeof(char*));
-      if(!tokens) {
-	perror("realloc");
-	free(tokens_backup);
-	return NULL;
-      }
-    }
-
-    token = strtok(NULL, delim);
-  }
-  tokens[position] = NULL;
-  return tokens;
-}
-
-
-/**
  * Execute an FTP command.
  **/
 static int
-ftp_execute(ftp_env_t *env, char **argv) {
-  int argc = 0;
-  while(argv[argc]) {
-    argc++;
+ftp_execute(ftp_env_t *env, char *line) {
+  char *sep = strchr(line, ' ');
+  char *arg = strchr(line, 0);
+
+  if(sep) {
+    sep[0] = 0;
+    arg = sep + 1;
   }
 
-  if(!argc) {
-    return -1;
+  if(!strcmp(line, "CDUP")) {
+    return ftp_cmd_CDUP(env, arg);
   }
-
-  if(!strcmp(argv[0], "CDUP")) {
-    return ftp_cmd_CDUP(argc, argv, env);
+  if(!strcmp(line, "CWD")) {
+    return ftp_cmd_CWD(env, arg);
   }
-  if(!strcmp(argv[0], "CWD")) {
-    return ftp_cmd_CWD(argc, argv, env);
+  if(!strcmp(line, "DELE")) {
+    return ftp_cmd_DELE(env, arg);
   }
-  if(!strcmp(argv[0], "DELE")) {
-    return ftp_cmd_DELE(argc, argv, env);
+  if(!strcmp(line, "LIST")) {
+    return ftp_cmd_LIST(env, arg);
   }
-  if(!strcmp(argv[0], "LIST")) {
-    return ftp_cmd_LIST(argc, argv, env);
+  if(!strcmp(line, "MKD")) {
+    return ftp_cmd_MKD(env, arg);
   }
-  if(!strcmp(argv[0], "MKD")) {
-    return ftp_cmd_MKD(argc, argv, env);
+  if(!strcmp(line, "NOOP")) {
+    return ftp_cmd_NOOP(env, arg);
   }
-  if(!strcmp(argv[0], "NOOP")) {
-    return ftp_cmd_NOOP(argc, argv, env);
+  if(!strcmp(line, "PASV")) {
+    return ftp_cmd_PASV(env, arg);
   }
-  if(!strcmp(argv[0], "PASV")) {
-    return ftp_cmd_PASV(argc, argv, env);
+  if(!strcmp(line, "PWD")) {
+    return ftp_cmd_PWD(env, arg);
   }
-  if(!strcmp(argv[0], "PWD")) {
-    return ftp_cmd_PWD(argc, argv, env);
+  if(!strcmp(line, "REST")) {
+    return ftp_cmd_REST(env, arg);
   }
-  if(!strcmp(argv[0], "REST")) {
-    return ftp_cmd_REST(argc, argv, env);
+  if(!strcmp(line, "RETR")) {
+    return ftp_cmd_RETR(env, arg);
   }
-  if(!strcmp(argv[0], "RETR")) {
-    return ftp_cmd_RETR(argc, argv, env);
+  if(!strcmp(line, "RMD")) {
+    return ftp_cmd_RMD(env, arg);
   }
-  if(!strcmp(argv[0], "RMD")) {
-    return ftp_cmd_RMD(argc, argv, env);
+  if(!strcmp(line, "RNFR")) {
+    return ftp_cmd_RNFR(env, arg);
   }
-  if(!strcmp(argv[0], "RNFR")) {
-    return ftp_cmd_RNFR(argc, argv, env);
+  if(!strcmp(line, "RNTO")) {
+    return ftp_cmd_RNTO(env, arg);
   }
-  if(!strcmp(argv[0], "RNTO")) {
-    return ftp_cmd_RNTO(argc, argv, env);
+  if(!strcmp(line, "SIZE")) {
+    return ftp_cmd_SIZE(env, arg);
   }
-  if(!strcmp(argv[0], "SIZE")) {
-    return ftp_cmd_SIZE(argc, argv, env);
+  if(!strcmp(line, "STOR")) {
+    return ftp_cmd_STOR(env, arg);
   }
-  if(!strcmp(argv[0], "STOR")) {
-    return ftp_cmd_STOR(argc, argv, env);
+  if(!strcmp(line, "SYST")) {
+    return ftp_cmd_SYST(env, arg);
   }
-  if(!strcmp(argv[0], "SYST")) {
-    return ftp_cmd_SYST(argc, argv, env);
+  if(!strcmp(line, "USER")) {
+    return ftp_cmd_USER(env, arg);
   }
-  if(!strcmp(argv[0], "USER")) {
-    return ftp_cmd_USER(argc, argv, env);
+  if(!strcmp(line, "TYPE")) {
+    return ftp_cmd_TYPE(env, arg);
   }
-  if(!strcmp(argv[0], "TYPE")) {
-    return ftp_cmd_TYPE(argc, argv, env);
-  }
-  if(!strcmp(argv[0], "QUIT")) {
-    return ftp_cmd_QUIT(argc, argv, env);
+  if(!strcmp(line, "QUIT")) {
+    return ftp_cmd_QUIT(env, arg);
   }
 
   // custom commands
-  if(!strcmp(argv[0], "MTRW")) {
-    return ftp_cmd_MTRW(argc, argv, env);
+  if(!strcmp(line, "MTRW")) {
+    return ftp_cmd_MTRW(env, arg);
   }
-  if(!strcmp(argv[0], "KILL")) {
+  if(!strcmp(line, "KILL")) {
     g_running = false; // TODO: atomic_store
     return 0;
   }
   
-  const char *cmd = "500 Command not recognized\r\n";
-  size_t len = strlen(cmd);
+  const char *msg = "500 Command not recognized\r\n";
+  size_t len = strlen(msg);
 
-  if(write(env->active_fd, cmd, len) != len) {
+  if(write(env->active_fd, msg, len) != len) {
     return -1;
   }
 
@@ -238,10 +198,10 @@ ftp_execute(ftp_env_t *env, char **argv) {
  **/
 static int
 ftp_greet(ftp_env_t *env) {
-  const char *cmd = "220 Service is ready\r\n";
-  size_t len = strlen(cmd);
+  const char *msg = "220 Service is ready\r\n";
+  size_t len = strlen(msg);
 
-  if(write(env->active_fd, cmd, len) != len) {
+  if(write(env->active_fd, msg, len) != len) {
     return -1;
   }
 
@@ -256,7 +216,6 @@ static void*
 ftp_thread(void *args) {
   ftp_env_t env;
   bool running;
-  char **cmds;
   char *line;
 
   // init env
@@ -276,24 +235,11 @@ ftp_thread(void *args) {
       break;
     }
 
-    if(!(cmds=ftp_splitstring(line, FTP_CMD_DELIM))) {
-      free(line);
-      break;
-    }
-
-    for(int i=0; cmds[i]; i++) {
-      if(!(args=ftp_splitstring(cmds[i], FTP_ARG_DELIM))) {
-	continue;
-      }
-
-      if(ftp_execute(&env, args)) {
-	running = false;
-      }
-      free(args);
+    if(ftp_execute(&env, line)) {
+      running = false;
     }
 
     free(line);
-    free(cmds);
   }
 
   if(env.active_fd > 0) {

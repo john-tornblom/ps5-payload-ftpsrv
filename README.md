@@ -26,8 +26,8 @@ prepending SITE). In particular:
  - MTRW - remount /system and /system_ex with write permissions.
 
 ## Limitations
-The webkit entry point cannot be used in conjunction with the MTRW command,
-hence it is disabled by default. To enable it:
+The MTRW command is only supported on the PS5 when deployed via the BD-J entry
+point, hence it is disabled by default. To enable it:
 ```console
 john@localhost:ftps5-payload$ export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk
 john@localhost:ftps5-payload$ export MTRW_COMMAND=1

@@ -30,6 +30,7 @@ along with this program; see the file COPYING. If not, see
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/sendfile.h>
 #include <limits.h>
 #include <stdint.h>
 #include <time.h>
@@ -126,11 +127,17 @@ ftp_data_read(ftp_env_t *env, void *buf, size_t count) {
 
 
 /**
- * Transmit data on an existing data connection.
+ * Transmit a file on an existing data connection.
  **/
-static int
-ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
-  return send(env->data_fd, buf, count, 0);
+static ssize_t
+ftp_file_send(ftp_env_t *env, int fd) {
+  int n = 1;
+
+  while(n > 0) {
+    n = sendfile(env->data_fd, fd, &env->data_offset, 0x4000);
+  }
+
+  return n;
 }
 
 
@@ -340,7 +347,7 @@ ftp_cmd_PASV(int argc, char **argv, ftp_env_t *env) {
 }
 
 /**
- * Return the size of a given file.
+ * Transmit a given file.
  **/
 int
 ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env) {
@@ -375,20 +382,12 @@ ftp_cmd_RETR(int argc, char **argv, ftp_env_t *env) {
     return ftp_perror(env);
   }
 
-  if(lseek(fd, env->data_offset, SEEK_SET) == -1) {
+  if(ftp_file_send(env, fd) < 0) {
     int ret = ftp_perror(env);
     close(fd);
     return ret;
   }
-
-  while((len=read(fd, buf, sizeof(buf)))) {
-    if(ftp_data_send(env, buf, len) != len) {
-      int ret = ftp_perror(env);
-      close(fd);
-      return ret;
-    }
-  }
-
+  
   close(fd);
 
   if(ftp_data_close(env)) {

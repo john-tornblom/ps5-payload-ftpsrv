@@ -339,7 +339,7 @@ ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
 
 
 /**
- * Transmit a given file.
+ * Retreive data from a given file.
  **/
 int
 ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
@@ -400,7 +400,7 @@ ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
 
 
 /**
- * Transmit the size of a given file.
+ * Obtain the size of a given file.
  **/
 int
 ftp_cmd_SIZE(ftp_env_t *env, const char* arg) {
@@ -419,7 +419,7 @@ ftp_cmd_SIZE(ftp_env_t *env, const char* arg) {
 
 
 /**
- *
+ * Store recieved data in a given file.
  **/
 int
 ftp_cmd_STOR(ftp_env_t *env, const char* arg) {

@@ -263,7 +263,7 @@ ftp_thread(void *args) {
 /**
  * Serve FTP on a given port.
  **/
-static void
+static int
 ftp_serve(uint16_t port) {
   struct sockaddr_in server_addr;
   struct sockaddr_in client_addr;
@@ -272,25 +272,28 @@ ftp_serve(uint16_t port) {
   int sockfd;
   int connfd;
   int flags;
-  
+
+  printf("Launching FTP server on port %d\n", port);
+  signal(SIGPIPE, SIG_IGN);
+
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
-    return;
+    return EXIT_FAILURE;
   }
 
   if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
     perror("setsockopt");
-    return;
+    return EXIT_FAILURE;
   }
 
   if((flags=fcntl(sockfd, F_GETFL)) < 0) {
     perror("fcntl");
-    return;
+    return EXIT_FAILURE;
   }
 
   if(fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) < 0) {
     perror("fcntl");
-    return;
+    return EXIT_FAILURE;
   }
 
   memset(&server_addr, 0, sizeof(server_addr));
@@ -300,12 +303,12 @@ ftp_serve(uint16_t port) {
 
   if(bind(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
     perror("bind");
-    return;
+    return EXIT_FAILURE;
   }
 
   if(listen(sockfd, 5) != 0) {
     perror("listen");
-    return;
+    return EXIT_FAILURE;
   }
 
   addr_len = sizeof(client_addr);
@@ -323,7 +326,7 @@ ftp_serve(uint16_t port) {
 
     if((flags=fcntl(connfd, F_GETFL)) < 0) {
       perror("fcntl");
-      return;
+      continue;
     }
   
     if(fcntl(connfd, F_SETFL, flags & ~O_NONBLOCK) < 0) {
@@ -335,6 +338,9 @@ ftp_serve(uint16_t port) {
   }
 
   close(sockfd);
+  printf("Server killed\n");
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -344,12 +350,6 @@ ftp_serve(uint16_t port) {
 int
 main() {
   uint16_t port = 2121;
-
-  printf("Launching FTP server on port %d\n", port);
-  signal(SIGPIPE, SIG_IGN);
-  ftp_serve(port);
-  printf("Server killed\n");
-
-  return 0;
+  return ftp_serve(port);
 }
 

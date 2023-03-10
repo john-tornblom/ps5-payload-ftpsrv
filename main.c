@@ -27,6 +27,7 @@ along with this program; see the file COPYING. If not, see
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "cmd.h"
 
@@ -399,6 +400,7 @@ main() {
   uint16_t port = 2121;
 
   printf("Launching FTP server on port %d\n", port);
+  signal(SIGPIPE, SIG_IGN);
   ftp_serve(port);
   printf("Server killed\n");
 

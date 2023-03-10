@@ -17,13 +17,18 @@ john@localhost:ftps5-payload$ ./ftp-server.elf
 ```
 
 ## Features
-Compared to other FTP servers for the PS5, ftps5-payload is multi-threaded,
-and supports multiple simultanious connections. Client software that has been
-testing include gFTP, Filezilla, and Thunar. Furthermore, the payload supports
-a couple of custom SITE commands specifically for the PS5 (executed without
-prepending SITE). In particular:
+Client software that has been testing include gFTP, Filezilla, and Thunar.
+Furthermore, the payload supports a couple of custom SITE commands specifically
+for the PS5 (executed without prepending SITE). In particular:
  - KILL - kill the FTP server. This allows you to launch other payloads.
  - MTRW - remount /system and /system_ex with write permissions.
+
+Optionally, the server can also be forked into its own process:
+```console
+john@localhost:ftps5-payload$ export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk
+john@localhost:ftps5-payload$ export FORK_SERVER=1
+john@localhost:ftps5-payload$ make
+```
 
 ## Limitations
 The MTRW command is only supported on the PS5 when deployed via the BD-J entry
@@ -33,6 +38,9 @@ john@localhost:ftps5-payload$ export PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk
 john@localhost:ftps5-payload$ export MTRW_COMMAND=1
 john@localhost:ftps5-payload$ make
 ```
+Forking the procress via the BD-J entry point crashes the PS5 kernel when a client
+connects and requests a file listing. Furthermore, whenever a forked process
+is terminated (e.g., via the KILL command), the PS5 kernel also crashes.
 
 ## Reporting Bugs
 If you encounter problems with ftps5-payload, please [file a github issue][issues].

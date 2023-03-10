@@ -17,9 +17,12 @@
 ELF := ftp-server.elf
 
 CC ?= cc
-LD ?= ld
 
 CFLAGS := -g -Wall
+
+ifdef FORK_SERVER
+	CFLAGS += -DFORK_SERVER=$(FORK_SERVER)
+endif
 
 all: $(ELF)
 
@@ -27,7 +30,7 @@ all: $(ELF)
 	$(CC) -c $(CFLAGS) -o $@ $^
 
 $(ELF): main.o cmd.o
-	$(CC) -o $@ $^
+	$(CC) -o $@ main.o cmd.o -lpthread
 
 clean:
 	rm -f *.o $(ELF)

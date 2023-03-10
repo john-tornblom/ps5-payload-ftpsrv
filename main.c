@@ -350,6 +350,26 @@ ftp_serve(uint16_t port) {
 int
 main() {
   uint16_t port = 2121;
-  return ftp_serve(port);
+
+#if defined(__FreeBSD__) && defined(FORK_SERVER)
+  if (rfork_thread(RFPROC | RFFDG,
+		   malloc(0x4000),
+		   (void*)ftp_serve,
+		   (void*)(long)port) < 0) {
+    return EXIT_FAILURE;
+  } else {
+    return EXIT_SUCCESS;
+  }
+#elif defined(FORK_SERVER)
+  switch(fork()) {
+  case 0:
+    return ftp_serve(port);
+  case -1:
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+#else
+    return ftp_serve(port);
+#endif
 }
 

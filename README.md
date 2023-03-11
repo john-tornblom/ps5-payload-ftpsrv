@@ -42,6 +42,10 @@ john@localhost:ftps5-payload$ make
 Forking the procress via the BD-J entry point crashes the PS5 kernel when a client
 connects and requests a file listing. Furthermore, whenever a forked process
 is terminated (e.g., via the KILL command), the PS5 kernel also crashes.
+More interestingly, when deployed via the webkit entry point, the process
+does not crash the first time one terminates a forked process, but a second
+one will. If anyone has insights into why this is the case, please share that
+knowledge via a github issue.
 
 ## Reporting Bugs
 If you encounter problems with ftps5-payload, please [file a github issue][issues].

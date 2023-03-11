@@ -246,7 +246,7 @@ ftp_thread(void *args) {
     close(env.active_fd);
   }
 
-  if(env.passive_fd) {
+  if(env.passive_fd > 0) {
     close(env.passive_fd);
   }
 

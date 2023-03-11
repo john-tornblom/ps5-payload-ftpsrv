@@ -139,7 +139,10 @@ ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
  **/
 static int
 ftp_data_close(ftp_env_t *env) {
-  return close(env->data_fd);
+  if(!close(env->data_fd) && !close(env->passive_fd)) {
+    return 0;
+  }
+  return -1;
 }
 
 
@@ -242,11 +245,11 @@ ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
     p = arg;
   }
 
-  if(ftp_data_open(env)) {
+  if(!(dir=opendir(p))) {
     return ftp_perror(env);
   }
 
-  if(!(dir=opendir(p))) {
+  if(ftp_data_open(env)) {
     return ftp_perror(env);
   }
 
@@ -273,11 +276,13 @@ ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
 		    statbuf.st_size, timebuf, ent->d_name);
   }
 
-  if(closedir(dir)) {
-    return ftp_perror(env);
+  if(ftp_data_close(env)) {
+    int ret = ftp_perror(env);
+    closedir(dir);
+    return ret;
   }
 
-  if(ftp_data_close(env)) {
+  if(closedir(dir)) {
     return ftp_perror(env);
   }
 
@@ -299,6 +304,10 @@ ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
     return ftp_perror(env);
   }
   addr = sockaddr.sin_addr.s_addr;
+
+  if(env->passive_fd > 0) {
+    close(env->passive_fd);
+  }
 
   if((env->passive_fd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     return ftp_perror(env);

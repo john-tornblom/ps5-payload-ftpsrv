@@ -26,7 +26,8 @@ ELF := ftp-server.elf
 CC ?= cc
 LD ?= ld
 
-CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static -D__FreeBSD__ -Wall
+CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static -Wall
+CFLAGS += -D__FreeBSD__ -D__PROSPERO__
 LDADD  := -lSceLibcInternal
 
 ifdef FORK_SERVER

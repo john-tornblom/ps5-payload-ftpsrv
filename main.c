@@ -23,6 +23,7 @@ along with this program; see the file COPYING. If not, see
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -261,20 +262,67 @@ ftp_thread(void *args) {
 
 
 /**
+ * Data structure used to send UI notifications to the PS5 UI.
+ **/
+typedef struct notify_request {
+  char useless1[45];
+  char message[3075];
+} notify_request_t;
+
+
+/**
+ * Send UI notification request (PS5 only)
+ **/
+int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
+
+
+/**
  * Serve FTP on a given port.
  **/
 static int
 ftp_serve(uint16_t port) {
   struct sockaddr_in server_addr;
   struct sockaddr_in client_addr;
+  char ip[INET_ADDRSTRLEN];
+  struct ifaddrs *ifaddr;
+  notify_request_t req;
   socklen_t addr_len;
   pthread_t trd;
   int sockfd;
   int connfd;
   int flags;
 
-  printf("Launching FTP server on port %d\n", port);
+  if(getifaddrs(&ifaddr) == -1) {
+    perror("getifaddrs");
+    return EXIT_FAILURE;
+  }
+
   signal(SIGPIPE, SIG_IGN);
+
+  // Enumerate all AF_INET IPs
+  for(struct ifaddrs *ifa=ifaddr; ifa!=NULL; ifa=ifa->ifa_next) {
+    if(ifa->ifa_addr == NULL) {
+      continue;
+    }
+
+    if(ifa->ifa_addr->sa_family != AF_INET) {
+      continue;
+    }
+
+    struct sockaddr_in *in = (struct sockaddr_in*)ifa->ifa_addr;
+    inet_ntop(AF_INET, &(in->sin_addr), ip, sizeof(ip));
+
+    bzero(&req, sizeof(req));
+    sprintf(req.message, "Serving FTP on %s:%d (%s)",
+	    ip, port, ifa->ifa_name);
+
+#ifdef __PROSPERO__
+    sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
+#endif
+    puts(req.message);
+  }
+
+  freeifaddrs(ifaddr);
 
   if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");

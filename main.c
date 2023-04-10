@@ -57,7 +57,7 @@ ftp_readline(int fd) {
   int bufsize = 1024;
   int position = 0;
   char *buffer_backup;
-  char *buffer = malloc(sizeof(char) * bufsize);
+  char *buffer = calloc(bufsize, sizeof(char));
   char c;
 
   if(!buffer) {

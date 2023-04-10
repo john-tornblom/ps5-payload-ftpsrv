@@ -43,31 +43,36 @@ jobs:
     - name: Build PS5 Webkit (inproc)
       run: |
         make clean all
-        mv ftp-server.elf ftp-server.webkit.inproc.elf
+        mkdir -p payloads
+        mv ftp-server.elf payloads/ftp-server.webkit.inproc.elf
 
     - name: Build PS5 Webkit (fork)
       run: |
         make FORK_SERVER=1 clean all
-        mv ftp-server.elf ftp-server.webkit.fork.elf
+        mkdir -p payloads
+        mv ftp-server.elf payloads/ftp-server.webkit.fork.elf
 
     - name: Build PS5 BD-J (inproc)
       run: |
         make MTRW_COMMAND=1 clean all
-        mv ftp-server.elf ftp-server.bdj.inproc.elf
+        mkdir -p payloads
+        mv ftp-server.elf payloads/ftp-server.bdj.inproc.elf
 
     - name: Build Ubuntu (inproc)
       run: |
         make -f Makefile.posix clean all
-        mv ftp-server.elf ftp-server.ubuntu.inproc.elf
+        mkdir -p payloads
+        mv ftp-server.elf payloads/ftp-server.ubuntu.inproc.elf
 
     - name: Build Ubuntu (fork)
       run: |
         make FORK_SERVER=1 -f Makefile.posix clean all
-        mv ftp-server.elf ftp-server.ubuntu.fork.elf
+        mkdir -p payloads
+        mv ftp-server.elf payloads/ftp-server.ubuntu.fork.elf
 
     - name: Upload payloads
       uses: actions/upload-artifact@v3
       with:
         name: Payload binaries
-        path: ./*.elf
+        path: payloads/*.elf
         if-no-files-found: error

@@ -27,7 +27,8 @@ CC ?= cc
 LD ?= ld
 
 CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static -Wall
-CFLAGS += -D__FreeBSD__ -D__PROSPERO__
+CFLAGS += -D__FreeBSD__ -D__PROSPERO__ -std=gnu11
+
 LDADD  := -lSceLibcInternal
 
 ifdef FORK_SERVER

@@ -14,34 +14,23 @@ You should have received a copy of the GNU General Public License
 along with this program; see the file COPYING. If not, see
 <http://www.gnu.org/licenses/>.  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <sys/stat.h>
-#include <stdlib.h>
-#include <time.h>
 #include <dirent.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <netinet/in.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
-#include <limits.h>
-#include <stdint.h>
 #include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <errno.h>
-#include <inttypes.h>
 
 #ifdef __FreeBSD__
-#include <sys/mount.h>
 #include <sys/_iovec.h>
+#include <sys/mount.h>
 #endif
 
 #include "cmd.h"

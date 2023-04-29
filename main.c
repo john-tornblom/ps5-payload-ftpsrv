@@ -14,21 +14,21 @@ You should have received a copy of the GNU General Public License
 along with this program; see the file COPYING. If not, see
 <http://www.gnu.org/licenses/>.  */
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <signal.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "cmd.h"
 
@@ -44,10 +44,9 @@ along with this program; see the file COPYING. If not, see
 
 /**
  * Global state.
- * 
- * TODO: update ps5-payload-sdk with freebsd-11 headers and use atomic_bool
  **/
-static bool g_running;
+static atomic_bool g_running;
+
 
 
 /**
@@ -58,7 +57,7 @@ ftp_readline(int fd) {
   int bufsize = 1024;
   int position = 0;
   char *buffer_backup;
-  char *buffer = malloc(sizeof(char) * bufsize);
+  char *buffer = calloc(bufsize, sizeof(char));
   char c;
 
   if(!buffer) {
@@ -179,7 +178,7 @@ ftp_execute(ftp_env_t *env, char *line) {
     return ftp_cmd_MTRW(env, arg);
   }
   if(!strcmp(line, "KILL")) {
-    g_running = false; // TODO: atomic_store
+    atomic_store(&g_running, false);
     return 0;
   }
   
@@ -231,7 +230,7 @@ ftp_thread(void *args) {
 
   running = !ftp_greet(&env);
 
-  while(running && g_running) { //TODO: atomic_load
+  while(running && atomic_load(&g_running)) {
     if(!(line=ftp_readline(env.active_fd))) {
       break;
     }
@@ -360,9 +359,9 @@ ftp_serve(uint16_t port) {
   }
 
   addr_len = sizeof(client_addr);
-  g_running = true; //TODO: atomic_init
+  atomic_init(&g_running, true);
 
-  while(g_running) { // TODO: atomic_load
+  while(atomic_load(&g_running)) {
     if((connfd=accept(sockfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
       if(errno != EWOULDBLOCK) {
 	perror("accept");

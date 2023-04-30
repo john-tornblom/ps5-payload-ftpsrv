@@ -74,9 +74,16 @@ ftp_data_open(ftp_env_t *env) {
   struct sockaddr_in data_addr;
   socklen_t addr_len;
 
-  if((env->data_fd=accept(env->passive_fd, (struct sockaddr*)&data_addr,
-			  &addr_len)) < 0) {
-    return -1;
+  if(env->data_addr.sin_port) {
+    if(connect(env->data_fd, (struct sockaddr*)&env->data_addr,
+	       sizeof(env->data_addr))) {
+      return -1;
+    }
+  } else {
+    if((env->data_fd=accept(env->passive_fd, (struct sockaddr*)&data_addr,
+			    &addr_len)) < 0) {
+      return -1;
+    }
   }
 
   return 0;
@@ -128,7 +135,7 @@ ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
  **/
 static int
 ftp_data_close(ftp_env_t *env) {
-  if(!close(env->data_fd) && !close(env->passive_fd)) {
+  if(!close(env->data_fd)) {
     return 0;
   }
   return -1;
@@ -333,6 +340,35 @@ ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
 			   (addr >> 24) & 0xFF,
 			   (port >> 0) & 0xFF,
 			   (port >> 8) & 0xFF);
+}
+
+
+/**
+ * Establish a data connection with client.
+ **/
+int
+ftp_cmd_PORT(ftp_env_t *env, const char* arg) {
+  uint8_t addr[6];
+  uint64_t s_addr;
+  uint16_t port;
+
+  if(sscanf(arg, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+	    addr, addr+1, addr+2, addr+3, addr+4, addr+5) != 6) {
+    return ftp_active_printf(env, "501 Usage: PORT <addr>\r\n");
+  }
+
+  if((env->data_fd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    return ftp_perror(env);
+  }
+
+  s_addr = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
+  port = (addr[5] << 8) | addr[4];
+
+  env->data_addr.sin_family = AF_INET;
+  env->data_addr.sin_addr.s_addr = s_addr;
+  env->data_addr.sin_port = port;
+
+  return ftp_active_printf(env, "200 PORT command successful.\r\n");
 }
 
 

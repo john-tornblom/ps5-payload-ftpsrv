@@ -26,9 +26,11 @@ typedef struct ftp_env {
   int  active_fd;
   int  passive_fd;
   char cwd[PATH_MAX];
+
   char type;
   off_t data_offset;
   char rename_path[PATH_MAX];
+  struct sockaddr_in data_addr;
 } ftp_env_t;
 
 
@@ -39,6 +41,7 @@ int ftp_cmd_LIST(ftp_env_t *env, const char* arg);
 int ftp_cmd_MKD (ftp_env_t *env, const char* arg);
 int ftp_cmd_NOOP(ftp_env_t *env, const char* arg);
 int ftp_cmd_PASV(ftp_env_t *env, const char* arg);
+int ftp_cmd_PORT(ftp_env_t *env, const char* arg);
 int ftp_cmd_PWD (ftp_env_t *env, const char* arg);
 int ftp_cmd_QUIT(ftp_env_t *env, const char* arg);
 int ftp_cmd_REST(ftp_env_t *env, const char* arg);

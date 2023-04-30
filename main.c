@@ -136,6 +136,9 @@ ftp_execute(ftp_env_t *env, char *line) {
   if(!strcmp(line, "PASV")) {
     return ftp_cmd_PASV(env, arg);
   }
+  if(!strcmp(line, "PORT")) {
+    return ftp_cmd_PORT(env, arg);
+  }
   if(!strcmp(line, "PWD")) {
     return ftp_cmd_PWD(env, arg);
   }
@@ -227,6 +230,7 @@ ftp_thread(void *args) {
   env.active_fd = (int)(long)args;
   env.data_offset = 0;
   env.rename_path[0] = '\0';
+  memset(&env.data_addr, 0, sizeof(env.data_addr));
 
   running = !ftp_greet(&env);
 

@@ -20,6 +20,7 @@ along with this program; see the file COPYING. If not, see
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,60 @@ along with this program; see the file COPYING. If not, see
 #endif
 
 #include "cmd.h"
+
+
+#ifdef MTRW_COMMAND
+/**
+ * Build an iovec structure for nmount().
+ **/
+static void
+freebsd_build_iovec(struct iovec **iov, int *iovlen, const char *name, const char *v) {
+  int i;
+
+  if(*iovlen < 0) {
+    return;
+  }
+
+  i = *iovlen;
+  *iov = realloc(*iov, sizeof(**iov) * (i + 2));
+  if(*iov == 0) {
+    *iovlen = -1;
+    return;
+  }
+
+  (*iov)[i].iov_base = strdup(name);
+  (*iov)[i].iov_len = strlen(name) + 1;
+  i++;
+
+  (*iov)[i].iov_base = v ? strdup(v) : 0;
+  (*iov)[i].iov_len = v ? strlen(v) + 1 : 0;
+  i++;
+
+  *iovlen = i;
+}
+
+
+/**
+ * Remount a given path with write permissions.
+ *
+ * TODO: is there a memory leak to plug?
+ **/
+static int
+sce_remount(const char *dev, const char *path) {
+  struct iovec* iov = 0;
+  int iovlen = 0;
+
+  freebsd_build_iovec(&iov, &iovlen, "fstype", "exfatfs");
+  freebsd_build_iovec(&iov, &iovlen, "fspath", path);
+  freebsd_build_iovec(&iov, &iovlen, "from", dev);
+  freebsd_build_iovec(&iov, &iovlen, "large", "yes");
+  freebsd_build_iovec(&iov, &iovlen, "timezone", "static");
+  freebsd_build_iovec(&iov, &iovlen, "async", 0);
+  freebsd_build_iovec(&iov, &iovlen, "ignoreacl", 0);
+
+  return nmount(iov, iovlen, MNT_UPDATE);
+}
+#endif // MTRW_COMMAND
 
 
 /**
@@ -67,7 +122,7 @@ ftp_mode_string(mode_t mode, char *buf) {
 
 
 /**
- * Open a new PASSV FTP data connection.
+ * Open a new FTP data connection.
  **/
 static int
 ftp_data_open(ftp_env_t *env) {
@@ -181,7 +236,7 @@ ftp_perror(ftp_env_t *env) {
 
 
 /**
- *
+ * Resolve a path to its absolute path.
  **/
 static void
 ftp_abspath(ftp_env_t *env, char *abspath, const char *path) {
@@ -197,7 +252,87 @@ ftp_abspath(ftp_env_t *env, char *abspath, const char *path) {
 
 
 /**
- *
+ * Enter passive mode.
+ **/
+int
+ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
+  socklen_t sockaddr_len = sizeof(struct sockaddr_in);
+  struct sockaddr_in sockaddr;
+  uint32_t addr = 0;
+  uint16_t port = 0;
+
+  if(getsockname(env->active_fd, (struct sockaddr*)&sockaddr, &sockaddr_len)) {
+    return ftp_perror(env);
+  }
+  addr = sockaddr.sin_addr.s_addr;
+
+  if(env->passive_fd > 0) {
+    close(env->passive_fd);
+  }
+
+  if((env->passive_fd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    return ftp_perror(env);
+  }
+
+  memset(&sockaddr, 0, sockaddr_len);
+  sockaddr.sin_family = AF_INET;
+  sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  sockaddr.sin_port = htons(0);
+
+  if(bind(env->passive_fd, (struct sockaddr*)&sockaddr, sockaddr_len) != 0) {
+    int ret = ftp_perror(env);
+    close(env->passive_fd);
+    return ret;
+  }
+
+  if(listen(env->passive_fd, 5) != 0) {
+    int ret = ftp_perror(env);
+    close(env->passive_fd);
+    return ret;
+  }
+
+  if(getsockname(env->passive_fd, (struct sockaddr*)&sockaddr, &sockaddr_len)) {
+    int ret = ftp_perror(env);
+    close(env->passive_fd);
+    return ret;
+  }
+  port = sockaddr.sin_port;
+
+  return ftp_active_printf(env, "227 Entering Passive Mode (%hhu,%hhu,%hhu,%hhu,%hhu,%hhu).\r\n",
+			   (addr >> 0) & 0xFF,
+			   (addr >> 8) & 0xFF,
+			   (addr >> 16) & 0xFF,
+			   (addr >> 24) & 0xFF,
+			   (port >> 0) & 0xFF,
+			   (port >> 8) & 0xFF);
+}
+
+
+/**
+ * Change the working directory to its parent.
+ **/
+int
+ftp_cmd_CDUP(ftp_env_t *env, const char* arg) {
+  int pos = -1;
+
+  for(size_t i=0; i<sizeof(env->cwd); i++) {
+    if(!env->cwd[i]) {
+      break;
+    } else if(env->cwd[i] == '/') {
+      pos = i;
+    }
+  }
+
+  if(pos > 0) {
+    env->cwd[pos] = '\0';
+  }
+
+  return ftp_active_printf(env, "250 OK\r\n");
+}
+
+
+/**
+ * Change the working directory.
  **/
 int
 ftp_cmd_CWD(ftp_env_t *env, const char* arg) {
@@ -224,7 +359,27 @@ ftp_cmd_CWD(ftp_env_t *env, const char* arg) {
 
 
 /**
- *
+ * Delete a given file.
+ **/
+int
+ftp_cmd_DELE(ftp_env_t *env, const char* arg) {
+  char pathbuf[PATH_MAX];
+
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: DELE <FILENAME>\r\n");
+  }
+
+  ftp_abspath(env, pathbuf, arg);
+  if(remove(pathbuf)) {
+    return ftp_perror(env);
+  }
+
+  return ftp_active_printf(env, "226 File deleted\r\n");
+}
+
+
+/**
+ * Trasfer a list of files and folder.
  **/
 int
 ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
@@ -287,60 +442,34 @@ ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
 
 
 /**
- * Enter passive mode.
+ * Create a new directory at a given path.
  **/
 int
-ftp_cmd_PASV(ftp_env_t *env, const char* arg) {
-  socklen_t sockaddr_len = sizeof(struct sockaddr_in);
-  struct sockaddr_in sockaddr;
-  uint32_t addr = 0;
-  uint16_t port = 0;
+ftp_cmd_MKD(ftp_env_t *env, const char* arg) {
+  char pathbuf[PATH_MAX];
 
-  if(getsockname(env->active_fd, (struct sockaddr*)&sockaddr, &sockaddr_len)) {
-    return ftp_perror(env);
-  }
-  addr = sockaddr.sin_addr.s_addr;
-
-  if(env->passive_fd > 0) {
-    close(env->passive_fd);
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: MKD <DIRNAME>\r\n");
   }
 
-  if((env->passive_fd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  ftp_abspath(env, pathbuf, arg);
+  if(mkdir(pathbuf, 0777)) {
     return ftp_perror(env);
   }
 
-  memset(&sockaddr, 0, sockaddr_len);
-  sockaddr.sin_family = AF_INET;
-  sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  sockaddr.sin_port = htons(0);
-
-  if(bind(env->passive_fd, (struct sockaddr*)&sockaddr, sockaddr_len) != 0) {
-    int ret = ftp_perror(env);
-    close(env->passive_fd);
-    return ret;
-  }
-
-  if(listen(env->passive_fd, 5) != 0) {
-    int ret = ftp_perror(env);
-    close(env->passive_fd);
-    return ret;
-  }
-
-  if(getsockname(env->passive_fd, (struct sockaddr*)&sockaddr, &sockaddr_len)) {
-    int ret = ftp_perror(env);
-    close(env->passive_fd);
-    return ret;
-  }
-  port = sockaddr.sin_port;
-
-  return ftp_active_printf(env, "227 Entering Passive Mode (%hhu,%hhu,%hhu,%hhu,%hhu,%hhu).\r\n",
-			   (addr >> 0) & 0xFF,
-			   (addr >> 8) & 0xFF,
-			   (addr >> 16) & 0xFF,
-			   (addr >> 24) & 0xFF,
-			   (port >> 0) & 0xFF,
-			   (port >> 8) & 0xFF);
+  return ftp_active_printf(env, "226 Directory created\r\n");
 }
+
+
+/**
+ * No operation.
+ **/
+int
+ftp_cmd_NOOP(ftp_env_t *env, const char* arg) {
+  return ftp_active_printf(env, "200 NOOP OK\r\n");
+}
+
+
 
 
 /**
@@ -369,6 +498,40 @@ ftp_cmd_PORT(ftp_env_t *env, const char* arg) {
   env->data_addr.sin_port = port;
 
   return ftp_active_printf(env, "200 PORT command successful.\r\n");
+}
+
+
+/**
+ * Print working directory.
+ **/
+int
+ftp_cmd_PWD(ftp_env_t *env, const char* arg) {
+  return ftp_active_printf(env, "257 \"%s\"\r\n", env->cwd);
+}
+
+
+/**
+ * Disconnect client.
+ **/
+int
+ftp_cmd_QUIT(ftp_env_t *env, const char* arg) {
+  ftp_active_printf(env, "221 Goodbye\r\n");
+  return -1;
+}
+
+
+/**
+ * Mark the offset to start from in a future file transer.
+ **/
+int
+ftp_cmd_REST(ftp_env_t *env, const char* arg) {
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: REST <OFFSET>\r\n");
+  }
+
+  env->data_offset = atol(arg);
+
+  return ftp_active_printf(env, "200 REST OK\r\n");
 }
 
 
@@ -431,6 +594,70 @@ ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
   return ftp_active_printf(env, "226 Transfer completed\r\n");
 }
 
+
+/**
+ * Remove a directory.
+ **/
+int
+ftp_cmd_RMD(ftp_env_t *env, const char* arg) {
+  char pathbuf[PATH_MAX];
+
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RMD <DIRNAME>\r\n");
+  }
+
+  ftp_abspath(env, pathbuf, arg);
+  if(rmdir(pathbuf)) {
+    return ftp_perror(env);
+  }
+
+  return ftp_active_printf(env, "226 Directory deleted\r\n");
+}
+
+
+/**
+ * Specify a path that will later be renamed by the RNTO command.
+ **/
+int
+ftp_cmd_RNFR(ftp_env_t *env, const char* arg) {
+  struct stat st;
+
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RNFR <PATH>\r\n");
+  }
+
+  ftp_abspath(env, env->rename_path, arg);
+  if(stat(env->rename_path, &st)) {
+    return ftp_perror(env);
+  }
+
+  return ftp_active_printf(env, "350 Awaiting new name\r\n");
+}
+
+
+/**
+ * Rename a path previously specified by the RNFR command.
+ **/
+int
+ftp_cmd_RNTO(ftp_env_t *env, const char* arg) {
+  char pathbuf[PATH_MAX];
+  struct stat st;
+
+  if(!arg[0]) {
+    return ftp_active_printf(env, "501 Usage: RNTO <PATH>\r\n");
+  }
+
+  if(stat(env->rename_path, &st)) {
+    return ftp_perror(env);
+  }
+
+  ftp_abspath(env, pathbuf, arg);
+  if(rename(env->rename_path, pathbuf)) {
+    return ftp_perror(env);
+  }
+
+  return ftp_active_printf(env, "226 Path renamed\r\n");
+}
 
 
 /**
@@ -502,25 +729,6 @@ ftp_cmd_STOR(ftp_env_t *env, const char* arg) {
 
 
 /**
- * Print working directory.
- **/
-int
-ftp_cmd_PWD(ftp_env_t *env, const char* arg) {
-  return ftp_active_printf(env, "257 \"%s\"\r\n", env->cwd);
-}
-
-
-/**
- * Disconnect user.
- **/
-int
-ftp_cmd_QUIT(ftp_env_t *env, const char* arg) {
-  ftp_active_printf(env, "221 Goodbye\r\n");
-  return -1;
-}
-
-
-/**
  * Return system type.
  **/
 int
@@ -555,218 +763,13 @@ ftp_cmd_USER(ftp_env_t *env, const char* arg) {
 
 
 /**
- * Unsupported command.
+ * Custom command that terminates the server.
  **/
 int
-ftp_cmd_NA(ftp_env_t *env, const char* arg) {
-  return ftp_active_printf(env, "502 Command not implemented\r\n");
+ftp_cmd_KILL(ftp_env_t *env, const char* arg) {
+  atomic_store(env->srv_running, false);
+  return 0;
 }
-
-
-/**
- * No operation.
- **/
-int
-ftp_cmd_NOOP(ftp_env_t *env, const char* arg) {
-  return ftp_active_printf(env, "200 NOOP OK\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_REST(ftp_env_t *env, const char* arg) {
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: REST <OFFSET>\r\n");
-  }
-  
-  env->data_offset = atol(arg);
-
-  return ftp_active_printf(env, "200 REST OK\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_DELE(ftp_env_t *env, const char* arg) {
-  char pathbuf[PATH_MAX];
-
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: DELE <FILENAME>\r\n");
-  }
-
-  ftp_abspath(env, pathbuf, arg);
-  if(remove(pathbuf)) {
-    return ftp_perror(env);
-  }
-
-  return ftp_active_printf(env, "226 File deleted\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_MKD(ftp_env_t *env, const char* arg) {
-  char pathbuf[PATH_MAX];
-
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: MKD <DIRNAME>\r\n");
-  }
-
-  ftp_abspath(env, pathbuf, arg);
-  if(mkdir(pathbuf, 0777)) {
-    return ftp_perror(env);
-  }
-
-  return ftp_active_printf(env, "226 Directory created\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_CDUP(ftp_env_t *env, const char* arg) {
-  int pos = -1;
-
-  for(size_t i=0; i<sizeof(env->cwd); i++) {
-    if(!env->cwd[i]) {
-      break;
-    } else if(env->cwd[i] == '/') {
-      pos = i;
-    }
-  }
-
-  if(pos > 0) {
-    env->cwd[pos] = '\0';
-  }
-
-  return ftp_active_printf(env, "250 OK\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_RMD(ftp_env_t *env, const char* arg) {
-  char pathbuf[PATH_MAX];
-
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: RMD <DIRNAME>\r\n");
-  }
-
-  ftp_abspath(env, pathbuf, arg);
-  if(rmdir(pathbuf)) {
-    return ftp_perror(env);
-  }
-
-  return ftp_active_printf(env, "226 Directory deleted\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_RNFR(ftp_env_t *env, const char* arg) {
-  struct stat st;
-
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: RNFR <PATH>\r\n");
-  }
-
-  ftp_abspath(env, env->rename_path, arg);
-  if(stat(env->rename_path, &st)) {
-    return ftp_perror(env);
-  }
-
-  return ftp_active_printf(env, "350 Awaiting new name\r\n");
-}
-
-
-/**
- *
- **/
-int
-ftp_cmd_RNTO(ftp_env_t *env, const char* arg) {
-  char pathbuf[PATH_MAX];
-  struct stat st;
-
-  if(!arg[0]) {
-    return ftp_active_printf(env, "501 Usage: RNTO <PATH>\r\n");
-  }
-
-  if(stat(env->rename_path, &st)) {
-    return ftp_perror(env);
-  }
-
-  ftp_abspath(env, pathbuf, arg);
-  if(rename(env->rename_path, pathbuf)) {
-    return ftp_perror(env);
-  }
-
-  return ftp_active_printf(env, "226 Path renamed\r\n");
-}
-
-
-#ifdef MTRW_COMMAND
-/**
- * Build an iovec structure for nmount().
- **/
-static void
-freebsd_build_iovec(struct iovec **iov, int *iovlen, const char *name, const char *v) {
-  int i;
-
-  if(*iovlen < 0) {
-    return;
-  }
-
-  i = *iovlen;
-  *iov = realloc(*iov, sizeof(**iov) * (i + 2));
-  if(*iov == 0) {
-    *iovlen = -1;
-    return;
-  }
-
-  (*iov)[i].iov_base = strdup(name);
-  (*iov)[i].iov_len = strlen(name) + 1;
-  i++;
-
-  (*iov)[i].iov_base = v ? strdup(v) : 0;
-  (*iov)[i].iov_len = v ? strlen(v) + 1 : 0;
-  i++;
-
-  *iovlen = i;
-}
-
-
-/**
- * Remount a given path with write permissions.
- * 
- * TODO: is there a memory leak to plug?
- **/
-static int
-sce_remount(const char *dev, const char *path) {
-  struct iovec* iov = 0;
-  int iovlen = 0;
-
-  freebsd_build_iovec(&iov, &iovlen, "fstype", "exfatfs");
-  freebsd_build_iovec(&iov, &iovlen, "fspath", path);
-  freebsd_build_iovec(&iov, &iovlen, "from", dev);
-  freebsd_build_iovec(&iov, &iovlen, "large", "yes");
-  freebsd_build_iovec(&iov, &iovlen, "timezone", "static");
-  freebsd_build_iovec(&iov, &iovlen, "async", 0);
-  freebsd_build_iovec(&iov, &iovlen, "ignoreacl", 0);
-
-  return nmount(iov, iovlen, MNT_UPDATE);
-}
-#endif // MTRW_COMMAND
 
 
 /**
@@ -783,7 +786,24 @@ ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
   }
   return ftp_active_printf(env, "226 /system and /system_ex remounted\r\n");
 #else
-  return ftp_cmd_NA(env, arg);
+  return ftp_cmd_unavailable(env, arg);
 #endif
 }
 
+
+/**
+ * Unsupported command.
+ **/
+int
+ftp_cmd_unavailable(ftp_env_t *env, const char* arg) {
+  return ftp_active_printf(env, "502 Command not implemented\r\n");
+}
+
+
+/**
+ * Unknown command.
+ **/
+int
+ftp_cmd_unknown(ftp_env_t *env, const char* arg) {
+  return ftp_active_printf(env, "502 Command not recognized\r\n");
+}

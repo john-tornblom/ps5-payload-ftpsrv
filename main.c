@@ -34,12 +34,27 @@ along with this program; see the file COPYING. If not, see
 
 
 /**
- * Constants used for parsing FTP commands.
+ * Map names of commands to function entry points.
  **/
-#define FTP_LINE_BUFSIZE 1024
-#define FTP_TOK_BUFSIZE  128
-#define FTP_ARG_DELIM    " \t\r\n\a"
-#define FTP_CMD_DELIM    ";"
+typedef struct ftp_command {
+  const char       *name;
+  ftp_command_fn_t *func;
+} ftp_command_t;
+
+
+/**
+ * Data structure used to send UI notifications to the PS5 UI.
+ **/
+typedef struct notify_request {
+  char useless1[45];
+  char message[3075];
+} notify_request_t;
+
+
+/**
+ * Send UI notification request (PS5 only).
+ **/
+int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
 
 
 /**
@@ -47,6 +62,52 @@ along with this program; see the file COPYING. If not, see
  **/
 static atomic_bool g_running;
 
+
+/**
+ * Lookup table for FTP commands.
+ **/
+static ftp_command_t commands[] = {
+  {"CDUP", ftp_cmd_CDUP},
+  {"CWD",  ftp_cmd_CWD},
+  {"DELE", ftp_cmd_DELE},
+  {"LIST", ftp_cmd_LIST},
+  {"MKD",  ftp_cmd_MKD},
+  {"NOOP", ftp_cmd_NOOP},
+  {"PASV", ftp_cmd_PASV},
+  {"PORT", ftp_cmd_PORT},
+  {"PWD",  ftp_cmd_PWD},
+  {"QUIT", ftp_cmd_QUIT},
+  {"REST", ftp_cmd_REST},
+  {"RETR", ftp_cmd_RETR},
+  {"RMD",  ftp_cmd_RMD},
+  {"RNFR", ftp_cmd_RNFR},
+  {"RNTO", ftp_cmd_RNTO},
+  {"SIZE", ftp_cmd_SIZE},
+  {"STOR", ftp_cmd_STOR},
+  {"SYST", ftp_cmd_SYST},
+  {"TYPE", ftp_cmd_TYPE},
+  {"USER", ftp_cmd_USER},
+
+  // custom commands
+  {"KILL", ftp_cmd_KILL},
+  {"MTRW", ftp_cmd_MTRW},
+
+  // not yet implemnted
+  {"XCUP", ftp_cmd_unavailable},
+  {"XMKD", ftp_cmd_unavailable},
+  {"XPWD", ftp_cmd_unavailable},
+  {"XRCP", ftp_cmd_unavailable},
+  {"XRMD", ftp_cmd_unavailable},
+  {"XRSQ", ftp_cmd_unavailable},
+  {"XSEM", ftp_cmd_unavailable},
+  {"XSEN", ftp_cmd_unavailable},
+};
+
+
+/**
+ * Number of FTP commands in the lookup table.
+ **/
+static int nb_ftp_commands = (sizeof(commands)/sizeof(ftp_command_t));
 
 
 /**
@@ -115,84 +176,15 @@ ftp_execute(ftp_env_t *env, char *line) {
     arg = sep + 1;
   }
 
-  if(!strcmp(line, "CDUP")) {
-    return ftp_cmd_CDUP(env, arg);
-  }
-  if(!strcmp(line, "CWD")) {
-    return ftp_cmd_CWD(env, arg);
-  }
-  if(!strcmp(line, "DELE")) {
-    return ftp_cmd_DELE(env, arg);
-  }
-  if(!strcmp(line, "LIST")) {
-    return ftp_cmd_LIST(env, arg);
-  }
-  if(!strcmp(line, "MKD")) {
-    return ftp_cmd_MKD(env, arg);
-  }
-  if(!strcmp(line, "NOOP")) {
-    return ftp_cmd_NOOP(env, arg);
-  }
-  if(!strcmp(line, "PASV")) {
-    return ftp_cmd_PASV(env, arg);
-  }
-  if(!strcmp(line, "PORT")) {
-    return ftp_cmd_PORT(env, arg);
-  }
-  if(!strcmp(line, "PWD")) {
-    return ftp_cmd_PWD(env, arg);
-  }
-  if(!strcmp(line, "REST")) {
-    return ftp_cmd_REST(env, arg);
-  }
-  if(!strcmp(line, "RETR")) {
-    return ftp_cmd_RETR(env, arg);
-  }
-  if(!strcmp(line, "RMD")) {
-    return ftp_cmd_RMD(env, arg);
-  }
-  if(!strcmp(line, "RNFR")) {
-    return ftp_cmd_RNFR(env, arg);
-  }
-  if(!strcmp(line, "RNTO")) {
-    return ftp_cmd_RNTO(env, arg);
-  }
-  if(!strcmp(line, "SIZE")) {
-    return ftp_cmd_SIZE(env, arg);
-  }
-  if(!strcmp(line, "STOR")) {
-    return ftp_cmd_STOR(env, arg);
-  }
-  if(!strcmp(line, "SYST")) {
-    return ftp_cmd_SYST(env, arg);
-  }
-  if(!strcmp(line, "USER")) {
-    return ftp_cmd_USER(env, arg);
-  }
-  if(!strcmp(line, "TYPE")) {
-    return ftp_cmd_TYPE(env, arg);
-  }
-  if(!strcmp(line, "QUIT")) {
-    return ftp_cmd_QUIT(env, arg);
+  for(int i=0; i<nb_ftp_commands; i++) {
+    if(strcmp(line, commands[i].name)) {
+      continue;
+    }
+
+    return commands[i].func(env, arg);
   }
 
-  // custom commands
-  if(!strcmp(line, "MTRW")) {
-    return ftp_cmd_MTRW(env, arg);
-  }
-  if(!strcmp(line, "KILL")) {
-    atomic_store(&g_running, false);
-    return 0;
-  }
-  
-  const char *msg = "500 Command not recognized\r\n";
-  size_t len = strlen(msg);
-
-  if(write(env->active_fd, msg, len) != len) {
-    return -1;
-  }
-
-  return 0;
+  return ftp_cmd_unknown(env, arg);
 }
 
 
@@ -221,15 +213,16 @@ ftp_thread(void *args) {
   bool running;
   char *line;
 
-  // init env
-  env.type = 'A';
-  env.cwd[0] = '/';
-  env.cwd[1] = 0;
-  env.data_fd = -1;
-  env.passive_fd = -1;
-  env.active_fd = (int)(long)args;
+  env.data_fd     = -1;
+  env.passive_fd  = -1;
+  env.active_fd   = (int)(long)args;
+  env.srv_running = &g_running;
+
+  env.type        = 'A';
   env.data_offset = 0;
-  env.rename_path[0] = '\0';
+
+  strcpy(env.cwd, "/");
+  memset(env.rename_path, 0, sizeof(env.rename_path));
   memset(&env.data_addr, 0, sizeof(env.data_addr));
 
   running = !ftp_greet(&env);
@@ -262,21 +255,6 @@ ftp_thread(void *args) {
 
   return NULL;
 }
-
-
-/**
- * Data structure used to send UI notifications to the PS5 UI.
- **/
-typedef struct notify_request {
-  char useless1[45];
-  char message[3075];
-} notify_request_t;
-
-
-/**
- * Send UI notification request (PS5 only)
- **/
-int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
 
 
 /**

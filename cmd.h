@@ -17,15 +17,20 @@ along with this program; see the file COPYING. If not, see
 #pragma once
 
 #include <limits.h>
+#include <stdatomic.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
 
 /**
- *
+ * Data structure that captures the current state of a client.
  **/
 typedef struct ftp_env {
   int  data_fd;
   int  active_fd;
   int  passive_fd;
   char cwd[PATH_MAX];
+  atomic_bool *srv_running;
 
   char type;
   off_t data_offset;
@@ -34,6 +39,15 @@ typedef struct ftp_env {
 } ftp_env_t;
 
 
+/**
+ * Callback function prototype for ftp commands.
+ **/
+typedef int (ftp_command_fn_t)(ftp_env_t* env, const char* arg);
+
+
+/**
+ * Standard FTP commands.
+ **/
 int ftp_cmd_CDUP(ftp_env_t *env, const char* arg);
 int ftp_cmd_CWD (ftp_env_t *env, const char* arg);
 int ftp_cmd_DELE(ftp_env_t *env, const char* arg);
@@ -55,6 +69,16 @@ int ftp_cmd_SYST(ftp_env_t *env, const char* arg);
 int ftp_cmd_TYPE(ftp_env_t *env, const char* arg);
 int ftp_cmd_USER(ftp_env_t *env, const char* arg);
 
+
+/**
+ * Custom FTP commands.
+ **/
+int ftp_cmd_KILL(ftp_env_t *env, const char* arg);
 int ftp_cmd_MTRW(ftp_env_t *env, const char* arg);
 
-int ftp_cmd_NA(ftp_env_t *env, const char* arg);
+
+/**
+ * Error responses to unknown/unavailable FTP commands.
+ **/
+int ftp_cmd_unavailable(ftp_env_t *env, const char* arg);
+int ftp_cmd_unknown(ftp_env_t *env, const char* arg);

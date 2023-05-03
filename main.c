@@ -43,7 +43,7 @@ typedef struct ftp_command {
 
 
 /**
- * Data structure used to send UI notifications to the PS5 UI.
+ * Data structure used to send UI notifications on the PS5.
  **/
 typedef struct notify_request {
   char useless1[45];
@@ -52,13 +52,13 @@ typedef struct notify_request {
 
 
 /**
- * Send UI notification request (PS5 only).
+ * Send a UI notification request (PS5 only).
  **/
 int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
 
 
 /**
- * Global state.
+ * Global server state.
  **/
 static atomic_bool g_running;
 
@@ -305,7 +305,7 @@ ftp_serve(uint16_t port) {
 
   freeifaddrs(ifaddr);
 
-  if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if((sockfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
     return EXIT_FAILURE;
   }
@@ -347,9 +347,8 @@ ftp_serve(uint16_t port) {
     if((connfd=accept(sockfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
       if(errno != EWOULDBLOCK) {
 	perror("accept");
-      } else {
-	usleep(50 * 1000);
       }
+      usleep(50 * 1000);
       continue;
     }
 
@@ -357,7 +356,7 @@ ftp_serve(uint16_t port) {
       perror("fcntl");
       continue;
     }
-  
+
     if(fcntl(connfd, F_SETFL, flags & ~O_NONBLOCK) < 0) {
       perror("fcntl");
       continue;

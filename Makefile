@@ -23,12 +23,10 @@ PS5_PORT ?= 9020
 
 ELF := ftp-server.elf
 
-CC ?= cc
-LD ?= ld
+CC := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-cc
+LD := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-ld
 
-CFLAGS := --sysroot $(PS5_PAYLOAD_SDK) -static -Wall
-CFLAGS += -D__FreeBSD__ -D__PROSPERO__ -std=gnu11
-
+CFLAGS := -std=gnu11 -Wall
 LDADD  := -lSceLibcInternal
 
 ifdef FORK_SERVER
@@ -48,15 +46,10 @@ all: $(ELF)
 	$(CC) -c $(CFLAGS) -o $@ $^
 
 $(ELF): main.o cmd.o
-	$(LD) -static -o $@ \
-	      -T $(PS5_PAYLOAD_SDK)/ldscripts/elf_x86_64.x \
-	      -L$(PS5_PAYLOAD_SDK)/usr/lib \
-	      $^ $(PS5_PAYLOAD_SDK)/usr/lib/crt1.o \
-	      $(LDADD)
+	$(LD) -o $@ $^ $(LDADD)
 
 clean:
 	rm -f *.o *.elf
 
 test: $(ELF)
 	nc -q0 $(PS5_HOST) $(PS5_PORT) < $^
-

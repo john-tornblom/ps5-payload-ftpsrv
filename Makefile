@@ -27,17 +27,10 @@ CC := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-cc
 LD := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-ld
 
 CFLAGS := -std=gnu11 -Wall
-LDADD  := -lSceLibcInternal
+LDADD  := -lSceLibcInternal -lkernel_web
 
 ifdef FORK_SERVER
 	CFLAGS += -DFORK_SERVER=$(FORK_SERVER)
-endif
-
-ifdef MTRW_COMMAND
-	CFLAGS += -DMTRW_COMMAND=$(MTRW_COMMAND)
-	LDADD += -lkernel_sys
-else
-	LDADD += -lkernel_web
 endif
 
 all: $(ELF)

@@ -40,6 +40,7 @@ along with this program; see the file COPYING. If not, see
 
 #define IOVEC_ENTRY(x) {x ? x : 0, \
 			x ? strlen(x)+1 : 0}
+#define IOVEC_SIZE(x) (sizeof(x) / sizeof(struct iovec))
 
 
 /**
@@ -758,7 +759,6 @@ ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
     IOVEC_ENTRY("async"),     IOVEC_ENTRY(NULL),
     IOVEC_ENTRY("ignoreacl"), IOVEC_ENTRY(NULL),
   };
-  size_t len_sys = sizeof(iov_sys) / sizeof(struct iovec);
 
   struct iovec iov_sysex[] = {
     IOVEC_ENTRY("from"),      IOVEC_ENTRY("/dev/ssd0.system_ex"),
@@ -769,13 +769,12 @@ ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
     IOVEC_ENTRY("async"),     IOVEC_ENTRY(NULL),
     IOVEC_ENTRY("ignoreacl"), IOVEC_ENTRY(NULL),
   };
-  size_t len_sysex = sizeof(iov_sysex) / sizeof(struct iovec);
 
-  if(syscall(SYS_nmount, iov_sys, len_sys, MNT_UPDATE)) {
+  if(syscall(SYS_nmount, iov_sys, IOVEC_SIZE(iov_sys), MNT_UPDATE)) {
     return ftp_perror(env);
   }
 
-  if(syscall(SYS_nmount, iov_sysex, len_sysex, MNT_UPDATE)) {
+  if(syscall(SYS_nmount, iov_sysex, IOVEC_SIZE(iov_sysex), MNT_UPDATE)) {
     return ftp_perror(env);
   }
 

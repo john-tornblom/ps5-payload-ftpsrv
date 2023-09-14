@@ -33,40 +33,24 @@ jobs:
       working-directory: ps5-payload-sdk
       run: |
         sudo apt update
-        sudo apt install wget build-essential python3 python3-pyelftools clang clang-15 lld lld-15
+        sudo apt install wget build-essential clang clang-15 lld lld-15
         make
         make DESTDIR=${{ runner.tool_cache }}/ps5-payload-sdk install
         echo PS5_PAYLOAD_SDK=${{ runner.tool_cache }}/ps5-payload-sdk >> $GITHUB_ENV
         echo PS5_HOST=ps5 >> $GITHUB_ENV
         echo PS5_PORT=9020 >> $GITHUB_ENV
 
-    - name: Build PS5 (thrd)
+    - name: Build for PS5
       run: |
         make clean all
-        mkdir -p payloads
-        mv ftp-server.elf payloads/ftp-server.ps5.thrd.elf
 
-    - name: Build PS5 (fork)
-      run: |
-        make FORK_SERVER=1 clean all
-        mkdir -p payloads
-        mv ftp-server.elf payloads/ftp-server.ps5.fork.elf
-
-    - name: Build Ubuntu (thrd)
+    - name: Build for Ubuntu
       run: |
         make -f Makefile.posix clean all
-        mkdir -p payloads
-        mv ftp-server.elf payloads/ftp-server.ubuntu.thrd.elf
-
-    - name: Build Ubuntu (fork)
-      run: |
-        make FORK_SERVER=1 -f Makefile.posix clean all
-        mkdir -p payloads
-        mv ftp-server.elf payloads/ftp-server.ubuntu.fork.elf
 
     - name: Upload payloads
       uses: actions/upload-artifact@v3
       with:
         name: Payload binaries
-        path: payloads/*.elf
+        path: *.elf
         if-no-files-found: error

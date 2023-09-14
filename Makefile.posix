@@ -14,15 +14,11 @@
 # along with this program; see the file COPYING. If not see
 # <http://www.gnu.org/licenses/>.
 
-ELF := ftp-server.elf
+ELF := ftpsrv.posix.elf
 
 CC ?= cc
 
 CFLAGS := -g -Wall -std=gnu11
-
-ifdef FORK_SERVER
-	CFLAGS += -DFORK_SERVER=$(FORK_SERVER)
-endif
 
 all: $(ELF)
 

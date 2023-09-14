@@ -19,19 +19,15 @@ ifndef PS5_PAYLOAD_SDK
 endif
 
 PS5_HOST ?= ps5
-PS5_PORT ?= 9020
+PS5_PORT ?= 9021
 
-ELF := ftp-server.elf
+ELF := ftpsrv.elf
 
 CC := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-cc
 LD := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-ld
 
 CFLAGS := -std=gnu11 -Wall
 LDADD  := -lSceLibcInternal -lkernel_web
-
-ifdef FORK_SERVER
-	CFLAGS += -DFORK_SERVER=$(FORK_SERVER)
-endif
 
 all: $(ELF)
 

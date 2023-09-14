@@ -30,6 +30,10 @@ along with this program; see the file COPYING. If not, see
 #include <sys/socket.h>
 #include <unistd.h>
 
+#ifdef __PROSPERO__
+#include <ps5/kernel.h>
+#endif
+
 #include "cmd.h"
 
 
@@ -362,7 +366,9 @@ main() {
   pthread_t trd;
 
   pthread_create(&trd, NULL, ftp_serve, (void*)(long)port);
-#ifndef __PROSPERO__
+#ifdef __PROSPERO__
+  kernel_set_proc_rootdir(getpid(), kernel_get_root_vnode());
+#else
   pthread_join(trd, 0);
 #endif
 

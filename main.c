@@ -62,6 +62,12 @@ int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
 
 
 /**
+ * Set the process name (PS5 only).
+ **/
+int sceKernelSetProcessName(const char*);
+
+
+/**
  * Global server state.
  **/
 static atomic_bool g_running;
@@ -365,6 +371,7 @@ main() {
 
 #ifdef __PROSPERO__
   kernel_set_proc_rootdir(getpid(), kernel_get_root_vnode());
+  sceKernelSetProcessName("ftpsrv.elf");
 #endif
   ftp_serve(port);
 

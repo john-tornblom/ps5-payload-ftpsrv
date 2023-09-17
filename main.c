@@ -275,13 +275,14 @@ ftp_thread(void *args) {
 /**
  * Serve FTP on a given port.
  **/
-static void
+static int
 ftp_serve(uint16_t port) {
   struct sockaddr_in server_addr;
   struct sockaddr_in client_addr;
   char ip[INET_ADDRSTRLEN];
   struct ifaddrs *ifaddr;
   notify_request_t req;
+  int ifaddr_wait = 1;
   socklen_t addr_len;
   pthread_t trd;
   int connfd;
@@ -303,6 +304,11 @@ ftp_serve(uint16_t port) {
       continue;
     }
 
+    // skip localhost
+    if(!strncmp("lo", ifa->ifa_name, 2)) {
+      continue;
+    }
+
     struct sockaddr_in *in = (struct sockaddr_in*)ifa->ifa_addr;
     inet_ntop(AF_INET, &(in->sin_addr), ip, sizeof(ip));
 
@@ -314,18 +320,23 @@ ftp_serve(uint16_t port) {
     sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
 #endif
     puts(req.message);
+    ifaddr_wait = 0;
   }
 
   freeifaddrs(ifaddr);
 
+  if(ifaddr_wait) {
+    return 0;
+  }
+
   if((g_srvfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
-    _exit(EXIT_FAILURE);
+    return -1;
   }
 
   if(setsockopt(g_srvfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
     perror("setsockopt");
-    _exit(EXIT_FAILURE);
+    return -1;
   }
 
   memset(&server_addr, 0, sizeof(server_addr));
@@ -335,21 +346,20 @@ ftp_serve(uint16_t port) {
 
   if(bind(g_srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
     perror("bind");
-    _exit(EXIT_FAILURE);
+    return -1;
   }
 
   if(listen(g_srvfd, 5) != 0) {
     perror("listen");
-    _exit(EXIT_FAILURE);
+    return -1;
   }
 
   addr_len = sizeof(client_addr);
-  atomic_init(&g_running, true);
 
   while(atomic_load(&g_running)) {
     if((connfd=accept(g_srvfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
       perror("accept");
-      continue;
+      return -1;
     }
 
     pthread_create(&trd, NULL, ftp_thread, (void*)(long)connfd);
@@ -373,7 +383,12 @@ main() {
   kernel_set_proc_rootdir(getpid(), kernel_get_root_vnode());
   sceKernelSetProcessName("ftpsrv.elf");
 #endif
-  ftp_serve(port);
+
+  atomic_init(&g_running, true);
+  while(atomic_load(&g_running)) {
+    ftp_serve(port);
+    sleep(1);
+  }
 
   return 0;
 }

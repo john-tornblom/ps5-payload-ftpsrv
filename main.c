@@ -312,6 +312,11 @@ ftp_serve(uint16_t port) {
     struct sockaddr_in *in = (struct sockaddr_in*)ifa->ifa_addr;
     inet_ntop(AF_INET, &(in->sin_addr), ip, sizeof(ip));
 
+    // skip interfaces without an ip
+    if(!strncmp("0.", ip, 2)) {
+      continue;
+    }
+
     bzero(&req, sizeof(req));
     sprintf(req.message, "Serving FTP on %s:%d (%s)",
 	    ip, port, ifa->ifa_name);

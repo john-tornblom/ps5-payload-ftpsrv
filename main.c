@@ -28,6 +28,7 @@ along with this program; see the file COPYING. If not, see
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #ifdef __PROSPERO__
@@ -133,7 +134,7 @@ ftp_readline(int fd) {
   char c;
 
   if(!buffer) {
-    perror("malloc");
+    perror("[ftpsrv.elf] malloc");
     return NULL;
   }
 
@@ -165,7 +166,7 @@ ftp_readline(int fd) {
       buffer_backup = buffer;
       buffer = realloc(buffer, bufsize);
       if(!buffer) {
-	perror("realloc");
+	perror("[ftpsrv.elf] realloc");
 	free(buffer_backup);
 	return NULL;
       }
@@ -288,7 +289,7 @@ ftp_serve(uint16_t port) {
   int connfd;
 
   if(getifaddrs(&ifaddr) == -1) {
-    perror("getifaddrs");
+    perror("[ftpsrv.elf] getifaddrs");
     _exit(EXIT_FAILURE);
   }
 
@@ -320,12 +321,12 @@ ftp_serve(uint16_t port) {
     bzero(&req, sizeof(req));
     sprintf(req.message, "Serving FTP on %s:%d (%s)",
 	    ip, port, ifa->ifa_name);
+    printf("[ftpsrv.elf] %s\n", req.message);
+    ifaddr_wait = 0;
 
 #ifdef __PROSPERO__
     sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
 #endif
-    puts(req.message);
-    ifaddr_wait = 0;
   }
 
   freeifaddrs(ifaddr);
@@ -335,12 +336,12 @@ ftp_serve(uint16_t port) {
   }
 
   if((g_srvfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("socket");
+    perror("[ftpsrv.elf] socket");
     return -1;
   }
 
   if(setsockopt(g_srvfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
-    perror("setsockopt");
+    perror("[ftpsrv.elf] setsockopt");
     return -1;
   }
 
@@ -350,12 +351,12 @@ ftp_serve(uint16_t port) {
   server_addr.sin_port = htons(port);
 
   if(bind(g_srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
-    perror("bind");
+    perror("[ftpsrv.elf] bind");
     return -1;
   }
 
   if(listen(g_srvfd, 5) != 0) {
-    perror("listen");
+    perror("[ftpsrv.elf] listen");
     return -1;
   }
 
@@ -363,17 +364,14 @@ ftp_serve(uint16_t port) {
 
   while(atomic_load(&g_running)) {
     if((connfd=accept(g_srvfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
-      perror("accept");
-      return -1;
+      perror("[ftpsrv.elf] accept");
+      break;
     }
 
     pthread_create(&trd, NULL, ftp_thread, (void*)(long)connfd);
   }
 
-  close(g_srvfd);
-  printf("Server killed\n");
-
-  _exit(EXIT_SUCCESS);
+  return close(g_srvfd);
 }
 
 
@@ -385,7 +383,20 @@ main() {
   uint16_t port = 2121;
 
 #ifdef __PROSPERO__
-  kernel_set_proc_rootdir(getpid(), kernel_get_root_vnode());
+  pid_t pid = getpid();
+  intptr_t rootdir;
+  rootdir = kernel_get_proc_rootdir(pid);
+  kernel_set_proc_rootdir(pid, kernel_get_root_vnode());
+
+  if(syscall(SYS_rfork, RFPROC | RFNOWAIT | RFCFDG)) {
+    kernel_set_proc_rootdir(pid, rootdir);
+    return 0;
+  }
+
+  open("/dev/null", O_RDONLY);    // stdin
+  open("/dev/console", O_WRONLY); // stdout
+  open("/dev/console", O_WRONLY); // stderr
+
   sceKernelSetProcessName("ftpsrv.elf");
 #endif
 
@@ -394,6 +405,9 @@ main() {
     ftp_serve(port);
     sleep(1);
   }
+
+  printf("[ftpsrv.elf] Server killed\n");
+  _exit(EXIT_SUCCESS);
 
   return 0;
 }

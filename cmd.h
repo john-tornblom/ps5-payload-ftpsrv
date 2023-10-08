@@ -30,7 +30,6 @@ typedef struct ftp_env {
   int  active_fd;
   int  passive_fd;
   char cwd[PATH_MAX];
-  atomic_bool *srv_running;
 
   char type;
   off_t data_offset;

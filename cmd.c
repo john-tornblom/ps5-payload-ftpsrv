@@ -721,7 +721,8 @@ ftp_cmd_USER(ftp_env_t *env, const char* arg) {
  **/
 int
 ftp_cmd_KILL(ftp_env_t *env, const char* arg) {
-  atomic_store(env->srv_running, false);
+  puts("[ftpsrv.elf] Server killed");
+  _exit(EXIT_SUCCESS);
   return 0;
 }
 

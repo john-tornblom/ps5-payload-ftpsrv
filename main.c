@@ -21,7 +21,6 @@ along with this program; see the file COPYING. If not, see
 #include <netinet/in.h>
 #include <pthread.h>
 #include <signal.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -66,13 +65,6 @@ int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
  * Set the process name (PS5 only).
  **/
 int sceKernelSetProcessName(const char*);
-
-
-/**
- * Global server state.
- **/
-static atomic_bool g_running;
-static int         g_srvfd;
 
 
 /**
@@ -228,7 +220,6 @@ ftp_thread(void *args) {
   env.data_fd     = -1;
   env.passive_fd  = -1;
   env.active_fd   = (int)(long)args;
-  env.srv_running = &g_running;
 
   env.type        = 'A';
   env.data_offset = 0;
@@ -239,7 +230,7 @@ ftp_thread(void *args) {
 
   running = !ftp_greet(&env);
 
-  while(running && atomic_load(&g_running)) {
+  while(running) {
     if(!(line=ftp_readline(env.active_fd))) {
       break;
     }
@@ -257,10 +248,6 @@ ftp_thread(void *args) {
 
   if(env.passive_fd > 0) {
     close(env.passive_fd);
-  }
-
-  if(!atomic_load(&g_running)) {
-    shutdown(g_srvfd, SHUT_RDWR);
   }
 
   if(env.data_fd > 0) {
@@ -287,6 +274,7 @@ ftp_serve(uint16_t port) {
   socklen_t addr_len;
   pthread_t trd;
   int connfd;
+  int srvfd;
 
   if(getifaddrs(&ifaddr) == -1) {
     perror("[ftpsrv.elf] getifaddrs");
@@ -339,12 +327,12 @@ ftp_serve(uint16_t port) {
     return 0;
   }
 
-  if((g_srvfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if((srvfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("[ftpsrv.elf] socket");
     return -1;
   }
 
-  if(setsockopt(g_srvfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+  if(setsockopt(srvfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
     perror("[ftpsrv.elf] setsockopt");
     return -1;
   }
@@ -354,20 +342,20 @@ ftp_serve(uint16_t port) {
   server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
   server_addr.sin_port = htons(port);
 
-  if(bind(g_srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
+  if(bind(srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
     perror("[ftpsrv.elf] bind");
     return -1;
   }
 
-  if(listen(g_srvfd, 5) != 0) {
+  if(listen(srvfd, 5) != 0) {
     perror("[ftpsrv.elf] listen");
     return -1;
   }
 
   addr_len = sizeof(client_addr);
 
-  while(atomic_load(&g_running)) {
-    if((connfd=accept(g_srvfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
+  while(1) {
+    if((connfd=accept(srvfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
       perror("[ftpsrv.elf] accept");
       break;
     }
@@ -375,7 +363,7 @@ ftp_serve(uint16_t port) {
     pthread_create(&trd, NULL, ftp_thread, (void*)(long)connfd);
   }
 
-  return close(g_srvfd);
+  return close(srvfd);
 }
 
 
@@ -404,14 +392,10 @@ main() {
   sceKernelSetProcessName("ftpsrv.elf");
 #endif
 
-  atomic_init(&g_running, true);
-  while(atomic_load(&g_running)) {
+  while(1) {
     ftp_serve(port);
     sleep(1);
   }
-
-  printf("[ftpsrv.elf] Server killed\n");
-  _exit(EXIT_SUCCESS);
 
   return 0;
 }

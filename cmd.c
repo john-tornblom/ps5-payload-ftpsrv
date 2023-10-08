@@ -617,13 +617,15 @@ ftp_cmd_RNTO(ftp_env_t *env, const char* arg) {
  **/
 int
 ftp_cmd_SIZE(ftp_env_t *env, const char* arg) {
+  char pathbuf[PATH_MAX];
   struct stat st;
 
   if(!arg[0]) {
     return ftp_active_printf(env, "501 Usage: SIZE <FILENAME>\r\n");
   }
 
-  if(stat(arg, &st)) {
+  ftp_abspath(env, pathbuf, arg);
+  if(stat(pathbuf, &st)) {
     return ftp_perror(env);
   }
 

@@ -311,8 +311,7 @@ ftp_serve(uint16_t port) {
     }
 
     bzero(&req, sizeof(req));
-    sprintf(req.message, "Serving FTP on %s:%d (%s)",
-	    ip, port, ifa->ifa_name);
+    sprintf(req.message, "Serving FTP on %s:%d (%s)", ip, port, ifa->ifa_name);
     printf("[ftpsrv.elf] %s\n", req.message);
     ifaddr_wait = 0;
 
@@ -376,8 +375,7 @@ main() {
 
 #ifdef __PROSPERO__
   pid_t pid = getpid();
-  intptr_t rootdir;
-  rootdir = kernel_get_proc_rootdir(pid);
+  intptr_t rootdir = kernel_get_proc_rootdir(pid);
   kernel_set_proc_rootdir(pid, kernel_get_root_vnode());
 
   if(syscall(SYS_rfork, RFPROC | RFNOWAIT | RFCFDG)) {

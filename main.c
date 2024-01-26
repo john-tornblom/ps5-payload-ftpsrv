@@ -392,7 +392,7 @@ main() {
 
   while(1) {
     ftp_serve(port);
-    sleep(1);
+    sleep(3);
   }
 
   return 0;

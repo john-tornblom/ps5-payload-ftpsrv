@@ -43,6 +43,14 @@ along with this program; see the file COPYING. If not, see
 #define IOVEC_SIZE(x) (sizeof(x) / sizeof(struct iovec))
 
 
+#ifdef __PROSPERO__
+struct tm *localtime_s(const time_t *t, struct tm* tm);
+#define LOCALTIME_R(t, tm) localtime_s(t, tm)
+#else
+#define LOCALTIME_R(t, tm) localtime_r(t, tm)
+#endif
+
+
 /**
  * Create a string representation of a file mode.
  **/
@@ -341,7 +349,7 @@ ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
   struct stat statbuf;
   char timebuf[20];
   char modebuf[20];
-  struct tm * tm;
+  struct tm tm;
   DIR *dir;
 
   if(arg[0] && arg[0] != '-') {
@@ -371,9 +379,8 @@ ftp_cmd_LIST(ftp_env_t *env, const char* arg) {
     }
 
     ftp_mode_string(statbuf.st_mode, modebuf);
-    tm = localtime((const time_t *)&(statbuf.st_ctim)); // TODO: not threadsafe
-    strftime(timebuf, sizeof(timebuf), "%b %d %H:%M", tm);
-
+    LOCALTIME_R((const time_t *)&(statbuf.st_ctim), &tm);
+    strftime(timebuf, sizeof(timebuf), "%b %d %H:%M", &tm);
     ftp_data_printf(env, "%s %lu %lu %lu %llu %s %s\r\n", modebuf,
 		    statbuf.st_nlink, statbuf.st_uid, statbuf.st_gid,
 		    statbuf.st_size, timebuf, ent->d_name);

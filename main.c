@@ -378,6 +378,7 @@ main() {
   intptr_t rootdir = kernel_get_proc_rootdir(pid);
   kernel_set_proc_rootdir(pid, kernel_get_root_vnode());
 
+  signal(SIGCHLD, SIG_IGN);
   if(syscall(SYS_rfork, RFPROC | RFNOWAIT | RFCFDG)) {
     kernel_set_proc_rootdir(pid, rootdir);
     return 0;

@@ -62,12 +62,6 @@ int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
 
 
 /**
- * Set the process name (PS5 only).
- **/
-int sceKernelSetProcessName(const char*);
-
-
-/**
  * Lookup table for FTP commands.
  **/
 static ftp_command_t commands[] = {
@@ -374,21 +368,9 @@ main() {
   uint16_t port = 2121;
 
 #ifdef __PROSPERO__
-  pid_t pid = getpid();
-  intptr_t rootdir = kernel_get_proc_rootdir(pid);
-  kernel_set_proc_rootdir(pid, kernel_get_root_vnode());
-
-  signal(SIGCHLD, SIG_IGN);
-  if(syscall(SYS_rfork, RFPROC | RFNOWAIT | RFCFDG)) {
-    kernel_set_proc_rootdir(pid, rootdir);
-    return 0;
-  }
-
-  open("/dev/null", O_RDONLY);    // stdin
-  open("/dev/console", O_WRONLY); // stdout
-  open("/dev/console", O_WRONLY); // stderr
-
-  sceKernelSetProcessName("ftpsrv.elf");
+  syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
+  dup2(open("/dev/console", O_WRONLY), STDOUT_FILENO);
+  dup2(open("/dev/console", O_WRONLY), STDERR_FILENO);
 #endif
 
   while(1) {

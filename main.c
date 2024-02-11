@@ -30,9 +30,6 @@ along with this program; see the file COPYING. If not, see
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#ifdef __PROSPERO__
-#include <ps5/kernel.h>
-#endif
 
 #include "cmd.h"
 
@@ -361,6 +358,23 @@ ftp_serve(uint16_t port) {
 
 
 /**
+ *
+ **/
+static void
+init_stdio(void) {
+  int fd = open("/dev/console", O_WRONLY);
+
+  close(STDERR_FILENO);
+  close(STDOUT_FILENO);
+
+  dup2(fd, STDOUT_FILENO);
+  dup2(fd, STDERR_FILENO);
+
+  close(fd);
+}
+
+
+/**
  * Launch payload.
  **/
 int
@@ -368,9 +382,9 @@ main() {
   uint16_t port = 2121;
 
 #ifdef __PROSPERO__
+  syscall(SYS_setsid);
   syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
-  dup2(open("/dev/console", O_WRONLY), STDOUT_FILENO);
-  dup2(open("/dev/console", O_WRONLY), STDERR_FILENO);
+  init_stdio();
 #endif
 
   while(1) {

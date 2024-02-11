@@ -387,6 +387,7 @@ main() {
   init_stdio();
 #endif
 
+  printf("[ftpsrv.elf] FTP server was compiled at %s %s\n", __DATE__, __TIME__);
   while(1) {
     ftp_serve(port);
     sleep(3);

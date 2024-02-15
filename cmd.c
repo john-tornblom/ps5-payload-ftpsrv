@@ -137,15 +137,6 @@ ftp_data_read(ftp_env_t *env, void *buf, size_t count) {
 
 
 /**
- * Transmit data on an existing data connection.
- **/
-static int
-ftp_data_send(ftp_env_t *env, void *buf, size_t count) {
-  return send(env->data_fd, buf, count, 0);
-}
-
-
-/**
  * Close an existing data connection.
  **/
 static int
@@ -500,9 +491,7 @@ ftp_cmd_REST(ftp_env_t *env, const char* arg) {
 int
 ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
-  char buf[0x4000];
   struct stat st;
-  ssize_t len;
   int fd;
 
   if(!arg[0]) {
@@ -530,18 +519,11 @@ ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
     return ftp_perror(env);
   }
 
-  if(lseek(fd, env->data_offset, SEEK_SET) == -1) {
+  if(sendfile(fd, env->data_fd, env->data_offset, 0, NULL, NULL, 0)) {
     int ret = ftp_perror(env);
+    ftp_data_close(env);
     close(fd);
     return ret;
-  }
-
-  while((len=read(fd, buf, sizeof(buf))) > 0) {
-    if(ftp_data_send(env, buf, len) != len) {
-      int ret = ftp_perror(env);
-      close(fd);
-      return ret;
-    }
   }
 
   close(fd);

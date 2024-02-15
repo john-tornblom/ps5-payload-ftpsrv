@@ -502,7 +502,7 @@ ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
   char pathbuf[PATH_MAX];
   char buf[0x4000];
   struct stat st;
-  size_t len;
+  ssize_t len;
   int fd;
 
   if(!arg[0]) {
@@ -536,7 +536,7 @@ ftp_cmd_RETR(ftp_env_t *env, const char* arg) {
     return ret;
   }
 
-  while((len=read(fd, buf, sizeof(buf)))) {
+  while((len=read(fd, buf, sizeof(buf))) > 0) {
     if(ftp_data_send(env, buf, len) != len) {
       int ret = ftp_perror(env);
       close(fd);

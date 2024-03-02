@@ -40,17 +40,13 @@ jobs:
         echo PS5_HOST=ps5 >> $GITHUB_ENV
         echo PS5_PORT=9020 >> $GITHUB_ENV
 
-    - name: Build for PS5
+    - name: Build
       run: |
         make clean all
 
-    - name: Build for Ubuntu
-      run: |
-        make -f Makefile.posix clean all
-
-    - name: Upload payloads
+    - name: Upload payload
       uses: actions/upload-artifact@v3
       with:
-        name: Payload binaries
-        path: ./*.elf
+        name: Payload
+        path: ./ftpsrv.elf
         if-no-files-found: error

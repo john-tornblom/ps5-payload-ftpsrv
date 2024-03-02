@@ -383,11 +383,9 @@ int
 main() {
   uint16_t port = 2121;
 
-#ifdef __PROSPERO__
   syscall(SYS_setsid);
   syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
   init_stdio();
-#endif
 
   printf("[ftpsrv.elf] FTP server was compiled at %s %s\n", __DATE__, __TIME__);
   while(1) {

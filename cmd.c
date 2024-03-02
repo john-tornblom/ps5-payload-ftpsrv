@@ -30,10 +30,8 @@ along with this program; see the file COPYING. If not, see
 #include <time.h>
 #include <unistd.h>
 
-#ifdef __FreeBSD__
 #include <sys/_iovec.h>
 #include <sys/mount.h>
-#endif
 
 #include "cmd.h"
 

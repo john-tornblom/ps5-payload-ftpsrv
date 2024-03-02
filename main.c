@@ -26,10 +26,13 @@ along with this program; see the file COPYING. If not, see
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/syscall.h>
+
+#include <ps5/klog.h>
 
 #include "cmd.h"
 
@@ -117,7 +120,7 @@ ftp_readline(int fd) {
   char c;
 
   if(!buffer) {
-    perror("[ftpsrv.elf] malloc");
+    klog_perror("malloc");
     return NULL;
   }
 
@@ -149,7 +152,7 @@ ftp_readline(int fd) {
       buffer_backup = buffer;
       buffer = realloc(buffer, bufsize);
       if(!buffer) {
-	perror("[ftpsrv.elf] realloc");
+	klog_perror("realloc");
 	free(buffer_backup);
 	return NULL;
       }
@@ -268,7 +271,7 @@ ftp_serve(uint16_t port) {
   int srvfd;
 
   if(getifaddrs(&ifaddr) == -1) {
-    perror("[ftpsrv.elf] getifaddrs");
+    klog_perror("[ftpsrv.elf] getifaddrs");
     exit(EXIT_FAILURE);
   }
 
@@ -303,7 +306,7 @@ ftp_serve(uint16_t port) {
 
     bzero(&req, sizeof(req));
     sprintf(req.message, "Serving FTP on %s:%d (%s)", ip, port, ifa->ifa_name);
-    printf("[ftpsrv.elf] %s\n", req.message);
+    klog_puts(req.message);
     ifaddr_wait = 0;
 
 #ifdef __PROSPERO__
@@ -318,12 +321,12 @@ ftp_serve(uint16_t port) {
   }
 
   if((srvfd=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("[ftpsrv.elf] socket");
+    klog_perror("socket");
     return -1;
   }
 
   if(setsockopt(srvfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
-    perror("[ftpsrv.elf] setsockopt");
+    klog_perror("setsockopt");
     return -1;
   }
 
@@ -333,12 +336,12 @@ ftp_serve(uint16_t port) {
   server_addr.sin_port = htons(port);
 
   if(bind(srvfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) != 0) {
-    perror("[ftpsrv.elf] bind");
+    klog_perror("bind");
     return -1;
   }
 
   if(listen(srvfd, 5) != 0) {
-    perror("[ftpsrv.elf] listen");
+    klog_perror("listen");
     return -1;
   }
 
@@ -346,7 +349,7 @@ ftp_serve(uint16_t port) {
 
   while(1) {
     if((connfd=accept(srvfd, (struct sockaddr*)&client_addr, &addr_len)) < 0) {
-      perror("[ftpsrv.elf] accept");
+      klog_perror("accept");
       break;
     }
 
@@ -377,17 +380,70 @@ init_stdio(void) {
 
 
 /**
+ * Fint the pid of a process with the given name.
+ **/
+static pid_t
+find_pid(const char* name) {
+  int mib[4] = {1, 14, 8, 0};
+  pid_t mypid = getpid();
+  pid_t pid = -1;
+  size_t buf_size;
+  uint8_t *buf;
+
+  if(sysctl(mib, 4, 0, &buf_size, 0, 0)) {
+    klog_perror("[elfldr.elf] sysctl");
+    return -1;
+  }
+
+  if(!(buf=malloc(buf_size))) {
+    klog_perror("[elfldr.elf] malloc");
+    return -1;
+  }
+
+  if(sysctl(mib, 4, buf, &buf_size, 0, 0)) {
+    klog_perror("[elfldr.elf] sysctl");
+    free(buf);
+    return -1;
+  }
+
+  for(uint8_t *ptr=buf; ptr<(buf+buf_size);) {
+    int ki_structsize = *(int*)ptr;
+    pid_t ki_pid = *(pid_t*)&ptr[72];
+    char *ki_tdname = (char*)&ptr[447];
+
+    ptr += ki_structsize;
+    if(!strcmp(name, ki_tdname) && ki_pid != mypid) {
+      pid = ki_pid;
+    }
+  }
+
+  free(buf);
+
+  return pid;
+}
+
+
+/**
  * Launch payload.
  **/
 int
 main() {
   uint16_t port = 2121;
+  pid_t pid;
 
-  syscall(SYS_setsid);
   syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
   init_stdio();
 
-  printf("[ftpsrv.elf] FTP server was compiled at %s %s\n", __DATE__, __TIME__);
+  klog_printf("Socket server was compiled at %s %s\n", __DATE__, __TIME__);
+
+  while((pid=find_pid("ftpsrv.elf")) > 0) {
+    if(kill(pid, SIGKILL)) {
+      klog_perror("kill");
+      _exit(-1);
+    }
+    sleep(1);
+  }
+
   while(1) {
     ftp_serve(port);
     sleep(3);

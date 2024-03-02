@@ -709,7 +709,7 @@ ftp_cmd_USER(ftp_env_t *env, const char* arg) {
 int
 ftp_cmd_KILL(ftp_env_t *env, const char* arg) {
   puts("[ftpsrv.elf] Server killed");
-  _exit(EXIT_SUCCESS);
+  exit(EXIT_SUCCESS);
   return 0;
 }
 

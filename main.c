@@ -269,7 +269,7 @@ ftp_serve(uint16_t port) {
 
   if(getifaddrs(&ifaddr) == -1) {
     perror("[ftpsrv.elf] getifaddrs");
-    _exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
   }
 
   signal(SIGPIPE, SIG_IGN);

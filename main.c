@@ -291,10 +291,6 @@ ftp_serve(uint16_t port) {
     if(!strncmp("lo", ifa->ifa_name, 2)) {
       continue;
     }
-    // skip interfaces without an IP
-    if(!strncmp("0.", ifa->ifa_name, 2)) {
-      continue;
-    }
 
     struct sockaddr_in *in = (struct sockaddr_in*)ifa->ifa_addr;
     inet_ntop(AF_INET, &(in->sin_addr), ip, sizeof(ip));

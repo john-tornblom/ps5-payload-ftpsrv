@@ -14,17 +14,16 @@
 # along with this program; see the file COPYING. If not see
 # <http://www.gnu.org/licenses/>.
 
-ifndef PS5_PAYLOAD_SDK
-    $(error PS5_PAYLOAD_SDK is undefined)
-endif
-
 PS5_HOST ?= ps5
 PS5_PORT ?= 9021
 
-ELF := ftpsrv.elf
+ifdef PS5_PAYLOAD_SDK
+    include $(PS5_PAYLOAD_SDK)/make/x86_64-ps5-payload.inc
+else
+    $(error PS5_PAYLOAD_SDK is undefined)
+endif
 
-CC := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-cc
-LD := $(PS5_PAYLOAD_SDK)/host/x86_64-ps5-payload-ld
+ELF := ftpsrv.elf
 
 CFLAGS := -std=gnu11 -Wall
 LDADD  := -lSceLibcInternal -lkernel_web
@@ -41,4 +40,4 @@ clean:
 	rm -f *.o *.elf
 
 test: $(ELF)
-	nc -q0 $(PS5_HOST) $(PS5_PORT) < $^
+	$(PS5_PAYLOAD_DEPLOY) -h $(PS5_HOST) -p $(PS5_PORT) $^

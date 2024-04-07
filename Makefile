@@ -25,19 +25,16 @@ endif
 
 ELF := ftpsrv.elf
 
-CFLAGS := -std=gnu11 -Wall
-LDADD  := -lSceLibcInternal -lkernel_web
+CFLAGS := -Wall -Werror
 
 all: $(ELF)
 
-%.o: %.c
-	$(CC) -c $(CFLAGS) -o $@ $^
-
-$(ELF): main.o cmd.o
-	$(LD) -o $@ $^ $(LDADD)
+$(ELF): main.c cmd.c
+	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	rm -f *.o *.elf
+	rm -f $(ELF)
 
 test: $(ELF)
 	$(PS5_DEPLOY) -h $(PS5_HOST) -p $(PS5_PORT) $^
+

@@ -47,21 +47,6 @@ typedef struct ftp_command {
 
 
 /**
- * Data structure used to send UI notifications on the PS5.
- **/
-typedef struct notify_request {
-  char useless1[45];
-  char message[3075];
-} notify_request_t;
-
-
-/**
- * Send a UI notification request (PS5 only).
- **/
-int sceKernelSendNotificationRequest(int, notify_request_t*, size_t, int);
-
-
-/**
  * Lookup table for FTP commands.
  **/
 static ftp_command_t commands[] = {
@@ -263,7 +248,6 @@ ftp_serve(uint16_t port) {
   struct sockaddr_in client_addr;
   char ip[INET_ADDRSTRLEN];
   struct ifaddrs *ifaddr;
-  notify_request_t req;
   int ifaddr_wait = 1;
   socklen_t addr_len;
   pthread_t trd;
@@ -271,7 +255,7 @@ ftp_serve(uint16_t port) {
   int srvfd;
 
   if(getifaddrs(&ifaddr) == -1) {
-    klog_perror("[ftpsrv.elf] getifaddrs");
+    klog_perror("getifaddrs");
     exit(EXIT_FAILURE);
   }
 
@@ -300,14 +284,8 @@ ftp_serve(uint16_t port) {
       continue;
     }
 
-    bzero(&req, sizeof(req));
-    sprintf(req.message, "Serving FTP on %s:%d (%s)", ip, port, ifa->ifa_name);
-    klog_puts(req.message);
+    klog_printf("Serving FTP on %s:%d (%s)\n", ip, port, ifa->ifa_name);
     ifaddr_wait = 0;
-
-#ifdef __PROSPERO__
-    sceKernelSendNotificationRequest(0, &req, sizeof(req), 0);
-#endif
   }
 
   freeifaddrs(ifaddr);
@@ -357,25 +335,6 @@ ftp_serve(uint16_t port) {
 
 
 /**
- *
- **/
-static void
-init_stdio(void) {
-  int fd = open("/dev/console", O_RDWR);
-
-  close(STDERR_FILENO);
-  close(STDOUT_FILENO);
-  close(STDIN_FILENO);
-
-  dup2(fd, STDIN_FILENO);
-  dup2(fd, STDOUT_FILENO);
-  dup2(fd, STDERR_FILENO);
-
-  close(fd);
-}
-
-
-/**
  * Fint the pid of a process with the given name.
  **/
 static pid_t
@@ -387,17 +346,17 @@ find_pid(const char* name) {
   uint8_t *buf;
 
   if(sysctl(mib, 4, 0, &buf_size, 0, 0)) {
-    klog_perror("[elfldr.elf] sysctl");
+    klog_perror("sysctl");
     return -1;
   }
 
   if(!(buf=malloc(buf_size))) {
-    klog_perror("[elfldr.elf] malloc");
+    klog_perror("malloc");
     return -1;
   }
 
   if(sysctl(mib, 4, buf, &buf_size, 0, 0)) {
-    klog_perror("[elfldr.elf] sysctl");
+    klog_perror("sysctl");
     free(buf);
     return -1;
   }
@@ -428,7 +387,6 @@ main() {
   pid_t pid;
 
   syscall(SYS_thr_set_name, -1, "ftpsrv.elf");
-  init_stdio();
 
   klog_printf("Socket server was compiled at %s %s\n", __DATE__, __TIME__);
 

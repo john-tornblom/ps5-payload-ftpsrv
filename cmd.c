@@ -738,8 +738,6 @@ ftp_cmd_unknown(ftp_env_t *env, const char* arg) {
  **/
 int
 ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
-
-#ifdef __PROSPERO__
   struct iovec iov_sys[] = {
     IOVEC_ENTRY("from"),      IOVEC_ENTRY("/dev/ssd0.system"),
     IOVEC_ENTRY("fspath"),    IOVEC_ENTRY("/system"),
@@ -769,7 +767,4 @@ ftp_cmd_MTRW(ftp_env_t *env, const char* arg) {
   }
 
   return ftp_active_printf(env, "226 /system and /system_ex remounted\r\n");
-#else
-  return ftp_cmd_unavailable(env, arg);
-#endif
 }
